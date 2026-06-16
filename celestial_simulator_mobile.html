@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>천구 좌표 시뮬레이터 v2 (모바일)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#020509;color:#d0d8ff;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;width:100vw}
+#canvas{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+
+/* ── Bottom sheets ── */
+.sheet {
+  position: fixed;
+  bottom: 52px;
+  left: 0; right: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: rgba(4,10,28,0.96);
+  border-top: 1px solid rgba(70,120,255,0.3);
+  border-radius: 14px 14px 0 0;
+  padding: 0 16px 16px;
+  z-index: 20;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+}
+.sheet.open { transform: translateY(0); }
+.sheet-handle { width:36px;height:4px;background:rgba(100,130,220,0.4);border-radius:2px;margin:10px auto 12px; }
+
+/* ── Tab bar ── */
+#tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 52px;
+  background: rgba(4,10,28,0.97);
+  border-top: 1px solid rgba(70,120,255,0.2);
+  display: flex; z-index: 30;
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 10px; color: #556088; cursor: pointer;
+  gap: 2px; border: none; background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn.active { color: #88aaff; }
+.tab-btn .ti { font-size: 18px; }
+
+/* ── Top control bar ── */
+#ctrl-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+  display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+  background: rgba(4,10,28,0.82); backdrop-filter: blur(8px);
+}
+
+/* ── Mobile buttons ── */
+.mbtn {
+  background: rgba(70,120,255,0.10);
+  border: 1px solid rgba(70,120,255,0.26);
+  color: #7788bb; padding: 8px 12px; border-radius: 5px;
+  cursor: pointer; font-size: 12px; min-height: 36px;
+  transition: all .18s; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.mbtn:hover { background: rgba(70,120,255,0.22); color: #bbc8ff; }
+.mbtn.on-a { background:rgba(255,50,90,0.18);border-color:rgba(255,80,120,0.45);color:#ffaabb }
+.mbtn.on-b { background:rgba(20,160,255,0.18);border-color:rgba(40,180,255,0.45);color:#77ddff }
+.mbtn.on-g { background:rgba(60,200,100,0.18);border-color:rgba(60,200,100,0.45);color:#88ffaa }
+.mbtn.on-m { background:rgba(200,140,20,0.18);border-color:rgba(200,160,40,0.45);color:#ffdd88 }
+
+/* ── Panel header ── */
+.ph{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:#5577bb;
+    margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(70,120,255,0.16)}
+
+/* ── Field rows ── */
+.fr{display:flex;align-items:center;gap:4px;margin-bottom:7px}
+.fl{font-size:12px;color:#7788bb;min-width:56px;flex-shrink:0}
+.fi{background:rgba(255,255,255,0.055);border:1px solid rgba(70,120,255,0.22);
+    color:#c8d4ff;padding:6px 8px;border-radius:4px;font-size:14px;
+    min-width:52px;width:60px;text-align:right;min-height:38px}
+.fi:focus{outline:none;border-color:rgba(100,160,255,0.6)}
+.fi.wide{width:80px}
+.fu{font-size:12px;color:#445577}
+
+/* ── Result rows ── */
+.rr{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.rl{font-size:12px;color:#7788bb;min-width:60px}
+.rv{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.ra{color:#ff4466}.rb{color:#22ccff}
+.ra2{color:#ff8844}.rb2{color:#44ddaa}
+
+/* ── Buttons (inside sheets) ── */
+.btn{background:rgba(70,120,255,0.10);border:1px solid rgba(70,120,255,0.26);
+     color:#7788bb;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:12px;
+     min-height:36px;transition:all .18s;white-space:nowrap;
+     -webkit-tap-highlight-color: transparent}
+.btn:hover{background:rgba(70,120,255,0.22);color:#bbc8ff}
+.btn.on-a{background:rgba(255,50,90,0.18);border-color:rgba(255,80,120,0.45);color:#ffaabb}
+.btn.on-b{background:rgba(20,160,255,0.18);border-color:rgba(40,180,255,0.45);color:#77ddff}
+.btn.on-g{background:rgba(60,200,100,0.18);border-color:rgba(60,200,100,0.45);color:#88ffaa}
+.btn.on-m{background:rgba(200,140,20,0.18);border-color:rgba(200,160,40,0.45);color:#ffdd88}
+
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;vertical-align:middle}
+.da{background:#ff4466}.db{background:#22ccff}
+
+.sep{border:none;border-top:1px solid rgba(70,120,255,0.14);margin:9px 0}
+.hint{font-size:10px;color:rgba(100,120,180,0.5);margin-top:4px}
+.flex{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.visok{font-size:11px;color:#44ee77;margin-top:3px}
+.visno{font-size:11px;color:#ff6644;margin-top:3px}
+
+/* ── Mode tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tab{flex:1;text-align:center;padding:8px 0;border-radius:5px;cursor:pointer;
+     font-size:11px;border:1px solid rgba(70,120,255,0.2);color:#5577aa;
+     background:rgba(70,120,255,0.06);transition:all .18s;min-height:36px;
+     display:flex;align-items:center;justify-content:center;
+     -webkit-tap-highlight-color: transparent}
+.tab.active{background:rgba(70,120,255,0.22);border-color:rgba(100,160,255,0.5);color:#aabbff}
+
+/* ── Inverse result ── */
+.inv-sol{margin-top:6px;padding:6px 8px;border-radius:5px;border:1px solid rgba(70,120,255,0.2);font-size:11px}
+.inv-sol .sv{font-size:13px;font-weight:700}
+
+/* ── GST / time ── */
+#gst-lbl{font-size:14px;font-weight:700;color:#6688ee;text-align:center;margin-bottom:5px}
+.trow{display:flex;justify-content:space-between;font-size:10px;color:#445577}
+input[type=range]{width:100%;margin:4px 0;accent-color:#4466ff;cursor:pointer}
+
+/* ── Info bar ── */
+#info{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+  background:rgba(4,10,28,0.75);border:1px solid rgba(70,120,255,0.16);
+  border-radius:16px;padding:4px 14px;font-size:11px;
+  color:rgba(120,140,200,0.65);pointer-events:none;z-index:10;white-space:nowrap}
+
+/* ── Checkbox ── */
+.chk-row{display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:#7788bb;min-height:36px}
+.chk-row input{accent-color:#5577ff;width:16px;height:16px;cursor:pointer;flex-shrink:0}
+
+/* ── Inverse solutions ── */
+.sol-header{font-size:11px;color:#7788bb;margin-bottom:4px}
+.sol-item{display:flex;gap:6px;align-items:center;margin-bottom:3px}
+.sol-val{font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ===== TOP CONTROL BAR ===== -->
+<div id="ctrl-bar">
+  <button class="mbtn" id="btn-a"><span class="dot da"></span>A</button>
+  <button class="mbtn" id="btn-b"><span class="dot db"></span>B</button>
+  <button class="mbtn" id="btn-rot">▶ 자전</button>
+  <button class="mbtn" id="btn-campos">🔓 고정</button>
+  <input type="range" id="speed" min="0.05" max="8" step="0.05" value="1" style="flex:1;min-width:0;accent-color:#4466ff">
+  <span id="speed-lbl" style="font-size:11px;color:#5577aa;width:26px;text-align:right;flex-shrink:0">1×</span>
+</div>
+
+<!-- ===== SHEET: STAR ===== -->
+<div class="sheet" id="sheet-star">
+  <div class="sheet-handle"></div>
+  <div class="ph">⭐ 별의 적도 좌표</div>
+
+  <div class="fr">
+    <span class="fl">적경 RA</span>
+    <input class="fi" type="number" id="ra-h" min="0" max="23" step="1" value="17">
+    <span class="fu">h</span>
+    <input class="fi" type="number" id="ra-m" min="0" max="59" step="1" value="34">
+    <span class="fu">m</span>
+  </div>
+  <div class="fr">
+    <span class="fl"></span>
+    <input class="fi" type="number" id="ra-s" min="0" max="59.999" step="0.001" value="56.070">
+    <span class="fu">s</span>
+  </div>
+  <div class="fr">
+    <span class="fl">적위 Dec</span>
+    <input class="fi" type="number" id="dc-d" min="-90" max="90" step="1" value="12">
+    <span class="fu">°</span>
+    <input class="fi" type="number" id="dc-m" min="0" max="59" step="1" value="33">
+    <span class="fu">′</span>
+  </div>
+  <div class="fr">
+    <span class="fl"></span>
+    <input class="fi" type="number" id="dc-s" min="0" max="59.999" step="0.001" value="36.100">
+    <span class="fu">″</span>
+  </div>
+  <div class="hint">라스알하게 α Oph — 17h 34m 56.07s, +12° 33′ 36.1″</div>
+
+  <div class="sep"></div>
+
+  <label class="chk-row">
+    <input type="checkbox" id="chk-point"> 지구를 점으로 (방위각/고도 시각화)
+  </label>
+  <div id="hemi-opacity-ctrl" style="display:none;margin-top:10px">
+    <div style="font-size:10px;color:#556088;margin-bottom:5px">투명도</div>
+    <div class="fr" style="margin-bottom:5px">
+      <span class="fl" style="color:#ff8899">A 반구</span>
+      <input type="range" id="op-a" min="0" max="1" step="0.01" value="0.06"
+        style="flex:1;accent-color:#ff4466">
+      <span id="op-a-lbl" style="font-size:11px;color:#ff8899;width:32px;text-align:right">6%</span>
+    </div>
+    <div class="fr" style="margin-bottom:8px">
+      <span class="fl" style="color:#88ddff">B 반구</span>
+      <input type="range" id="op-b" min="0" max="1" step="0.01" value="0.06"
+        style="flex:1;accent-color:#22ccff">
+      <span id="op-b-lbl" style="font-size:11px;color:#88ddff;width:32px;text-align:right">6%</span>
+    </div>
+    <div style="font-size:10px;color:#556088;margin-bottom:5px">반구 크기</div>
+    <div class="fr" style="margin-bottom:5px">
+      <span class="fl" style="color:#ff8899">A 크기</span>
+      <input type="range" id="sz-a" min="0.4" max="3.5" step="0.05" value="1.8"
+        style="flex:1;accent-color:#ff4466">
+      <span id="sz-a-lbl" style="font-size:11px;color:#ff8899;width:36px;text-align:right">1.80</span>
+    </div>
+    <div class="fr" style="margin-bottom:0">
+      <span class="fl" style="color:#88ddff">B 크기</span>
+      <input type="range" id="sz-b" min="0.4" max="3.5" step="0.05" value="1.45"
+        style="flex:1;accent-color:#22ccff">
+      <span id="sz-b-lbl" style="font-size:11px;color:#88ddff;width:36px;text-align:right">1.45</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: OBS A ===== -->
+<div class="sheet" id="sheet-a">
+  <div class="sheet-handle"></div>
+  <div class="ph"><span class="dot da"></span>관측자 A</div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-a-fwd" onclick="setMode('a','fwd')">정방향 (→ Az/Alt)</div>
+    <div class="tab" id="tab-a-inv" onclick="setMode('a','inv')">역방향 (Az/Alt →)</div>
+  </div>
+
+  <div id="fwd-a">
+    <div class="fr">
+      <span class="fl">위도 Lat</span>
+      <input class="fi wide" type="number" id="a-lat" min="-90" max="90" step="0.001" value="-22.677">
+      <span class="fu">°</span>
+    </div>
+    <div class="fr">
+      <span class="fl">경도 Lon</span>
+      <input class="fi wide" type="number" id="a-lon" min="-180" max="180" step="0.001" value="14.524">
+      <span class="fu">°</span>
+    </div>
+    <div class="sep"></div>
+    <div class="rr"><span class="rl">방위각 Az</span><span class="rv ra" id="a-az">---°</span></div>
+    <div class="rr"><span class="rl">고도 Alt</span><span class="rv ra" id="a-alt">---°</span></div>
+    <div class="rr"><span class="rl">시각 HA</span><span class="rv ra" id="a-ha">---</span></div>
+    <div class="rr"><span class="rl">지방항성시 LST</span><span class="rv ra" id="a-lst">---</span></div>
+    <div id="a-vis"></div>
+    <div class="sep"></div>
+    <label class="chk-row" style="color:#ff8899">
+      <input type="checkbox" id="obs-view-a" onchange="setObsView('a',this.checked)">
+      이 관측자 시점으로 고정
+    </label>
+  </div>
+
+  <div id="inv-a" style="display:none">
+    <div class="fr">
+      <span class="fl">방위각 Az</span>
+      <input class="fi wide" type="number" id="a-az-in" min="0" max="360" step="0.01" value="270.00">
+      <span class="fu">°</span>
+    </div>
+    <div class="fr">
+      <span class="fl">고도 Alt</span>
+      <input class="fi wide" type="number" id="a-alt-in" min="-90" max="90" step="0.01" value="30.00">
+      <span class="fu">°</span>
+    </div>
+    <div class="sep"></div>
+    <div class="sol-header">역산 결과 (위도 / 경도):</div>
+    <div id="a-inv-result"><span style="font-size:11px;color:#445577">입력값 대기중</span></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: OBS B ===== -->
+<div class="sheet" id="sheet-b">
+  <div class="sheet-handle"></div>
+  <div class="ph"><span class="dot db"></span>관측자 B</div>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-b-fwd" onclick="setMode('b','fwd')">정방향 (→ Az/Alt)</div>
+    <div class="tab" id="tab-b-inv" onclick="setMode('b','inv')">역방향 (Az/Alt →)</div>
+  </div>
+
+  <div id="fwd-b">
+    <div class="fr">
+      <span class="fl">위도 Lat</span>
+      <input class="fi wide" type="number" id="b-lat" min="-90" max="90" step="0.001" value="37.459">
+      <span class="fu">°</span>
+    </div>
+    <div class="fr">
+      <span class="fl">경도 Lon</span>
+      <input class="fi wide" type="number" id="b-lon" min="-180" max="180" step="0.001" value="127.330">
+      <span class="fu">°</span>
+    </div>
+    <div class="sep"></div>
+    <div class="rr"><span class="rl">방위각 Az</span><span class="rv rb" id="b-az">---°</span></div>
+    <div class="rr"><span class="rl">고도 Alt</span><span class="rv rb" id="b-alt">---°</span></div>
+    <div class="rr"><span class="rl">시각 HA</span><span class="rv rb" id="b-ha">---</span></div>
+    <div class="rr"><span class="rl">지방항성시 LST</span><span class="rv rb" id="b-lst">---</span></div>
+    <div id="b-vis"></div>
+    <div class="sep"></div>
+    <label class="chk-row" style="color:#88ddff">
+      <input type="checkbox" id="obs-view-b" onchange="setObsView('b',this.checked)">
+      이 관측자 시점으로 고정
+    </label>
+  </div>
+
+  <div id="inv-b" style="display:none">
+    <div class="fr">
+      <span class="fl">방위각 Az</span>
+      <input class="fi wide" type="number" id="b-az-in" min="0" max="360" step="0.01" value="90.00">
+      <span class="fu">°</span>
+    </div>
+    <div class="fr">
+      <span class="fl">고도 Alt</span>
+      <input class="fi wide" type="number" id="b-alt-in" min="-90" max="90" step="0.01" value="45.00">
+      <span class="fu">°</span>
+    </div>
+    <div class="sep"></div>
+    <div class="sol-header">역산 결과 (위도 / 경도):</div>
+    <div id="b-inv-result"><span style="font-size:11px;color:#445577">입력값 대기중</span></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: TIME ===== -->
+<div class="sheet" id="sheet-time">
+  <div class="sheet-handle"></div>
+  <div class="ph">⏱ 시간 / GST</div>
+  <div id="gst-lbl">GST: 00h 00m 00s</div>
+  <input type="range" id="time-sl" min="0" max="24" step="0.001" value="0">
+  <div class="trow">
+    <span>0h (RA=0)</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span>
+  </div>
+</div>
+
+<!-- ===== SHEET: CONVERTER ===== -->
+<div class="sheet" id="sheet-conv">
+  <div class="sheet-handle"></div>
+  <div class="ph">🔄 위도/경도 단위 변환 (DMS → 소수도)</div>
+  <div class="fr">
+    <span class="fu" style="min-width:14px">±</span>
+    <input class="fi" type="number" id="cv-d" min="0" max="180" step="1" value="37" style="width:54px">
+    <span class="fu">°</span>
+    <input class="fi" type="number" id="cv-m" min="0" max="59" step="1" value="34" style="width:50px">
+    <span class="fu">′</span>
+    <input class="fi" type="number" id="cv-s" min="0" max="59.999" step="0.001" value="7.200" style="width:60px">
+    <span class="fu">″</span>
+  </div>
+  <div class="fr" style="margin-bottom:6px">
+    <span class="fu" style="min-width:14px">부호</span>
+    <label style="font-size:13px;color:#aabbdd;display:flex;align-items:center;gap:5px;cursor:pointer;min-height:36px">
+      <input type="radio" name="cv-sign" id="cv-pos" value="1" checked> + (북위/동경)
+    </label>
+    <label style="font-size:13px;color:#aabbdd;display:flex;align-items:center;gap:5px;margin-left:10px;cursor:pointer;min-height:36px">
+      <input type="radio" name="cv-sign" id="cv-neg" value="-1"> − (남위/서경)
+    </label>
+  </div>
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(70,120,255,0.18);border-radius:6px;padding:9px 12px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:12px;color:#7788bb;min-width:36px">결과</span>
+    <span id="cv-result" style="font-size:17px;font-weight:700;color:#88ccff;font-variant-numeric:tabular-nums;letter-spacing:.5px">37.568667°</span>
+    <button class="btn" id="cv-copy" style="margin-left:auto;padding:6px 12px;font-size:12px">복사</button>
+  </div>
+  <div class="hint" style="margin-top:6px">소수도 = 도 + 분/60 + 초/3600</div>
+</div>
+
+<!-- ===== INFO BAR ===== -->
+<div id="info">터치 드래그: 시점 회전 | 핀치: 줌</div>
+
+<!-- ===== TAB BAR ===== -->
+<div id="tab-bar">
+  <button class="tab-btn active" id="ttab-star" onclick="openSheet('star',this)">
+    <span class="ti">⭐</span><span>별 좌표</span>
+  </button>
+  <button class="tab-btn" id="ttab-a" onclick="openSheet('a',this)">
+    <span class="ti">🔴</span><span>관측자 A</span>
+  </button>
+  <button class="tab-btn" id="ttab-b" onclick="openSheet('b',this)">
+    <span class="ti">🔵</span><span>관측자 B</span>
+  </button>
+  <button class="tab-btn" id="ttab-time" onclick="openSheet('time',this)">
+    <span class="ti">⏱</span><span>시간</span>
+  </button>
+  <button class="tab-btn" id="ttab-conv" onclick="openSheet('conv',this)">
+    <span class="ti">🔄</span><span>변환기</span>
+  </button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ── Sheet toggle ──
+let activeSheet = null;
+function openSheet(name, btn) {
+  const sheetEl = el('sheet-' + name);
+  if (activeSheet === name) {
+    sheetEl.classList.remove('open');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    activeSheet = null;
+  } else {
+    if (activeSheet) el('sheet-' + activeSheet).classList.remove('open');
+    sheetEl.classList.add('open');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeSheet = name;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MATH / ASTRONOMY
+// ═══════════════════════════════════════════════════════════
+const DEG = Math.PI / 180;
+const RAD = 180 / Math.PI;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const el = id => document.getElementById(id);
+
+function getRA() {
+  const h = +el('ra-h').value||0;
+  const m = +el('ra-m').value||0;
+  const s = +el('ra-s').value||0;
+  return (h + m/60 + s/3600) * 15; // degrees
+}
+function getDec() {
+  const d = +el('dc-d').value||0;
+  const m = +el('dc-m').value||0;
+  const s = +el('dc-s').value||0;
+  const sign = d < 0 ? -1 : 1;
+  return d + sign*(m/60 + s/3600);
+}
+function getPinLatLon(id) {
+  return {
+    lat: +el(id+'-lat').value||0,
+    lon: +el(id+'-lon').value||0
+  };
+}
+
+// Forward: equatorial + observer + GST → Az, Alt, HA, LST
+function computeAzAlt(ra_deg, dec_deg, lat, lon, gst) {
+  const lst = ((gst + lon/15) % 24 + 24) % 24;
+  let ha_h = ((lst - ra_deg/15) % 24 + 24) % 24;
+  if (ha_h > 12) ha_h -= 24;
+  const H = ha_h * 15 * DEG;
+
+  const φ = lat*DEG, δ = dec_deg*DEG;
+  const sinAlt = Math.sin(φ)*Math.sin(δ) + Math.cos(φ)*Math.cos(δ)*Math.cos(H);
+  const alt = Math.asin(clamp(sinAlt,-1,1));
+
+  const cosAlt = Math.cos(alt);
+  let az = 0;
+  if (Math.abs(cosAlt) > 1e-9 && Math.abs(Math.cos(φ)) > 1e-9) {
+    const cosAz = (Math.sin(δ) - Math.sin(alt)*Math.sin(φ)) / (cosAlt*Math.cos(φ));
+    az = Math.acos(clamp(cosAz,-1,1));
+    if (Math.sin(H) > 0) az = 2*Math.PI - az;
+  }
+  return { alt:alt*RAD, az:az*RAD, ha:ha_h, lst };
+}
+
+// Inverse: equatorial + Az/Alt + GST → lat/lon candidates
+function computeLatLon(ra_deg, dec_deg, az_deg, alt_deg, gst) {
+  const az = az_deg*DEG, alt = alt_deg*DEG, dec = dec_deg*DEG;
+  // sin(dec) = sin(alt)*sin(lat) + cos(alt)*cos(az)*cos(lat)
+  // → A*sin(lat) + B*cos(lat) = C
+  const A = Math.sin(alt);
+  const B = Math.cos(alt) * Math.cos(az);
+  const C = Math.sin(dec);
+  const R = Math.sqrt(A*A + B*B);
+  if (R < 1e-10) return [];
+  const ratio = C/R;
+  if (Math.abs(ratio) > 1) return [];
+
+  const phi = Math.atan2(B, A);
+  const alpha = Math.asin(ratio);
+  const latCandidates = [alpha - phi, Math.PI - alpha - phi];
+
+  const results = [];
+  latCandidates.forEach(lat => {
+    const lat_d = lat*RAD;
+    if (lat_d < -90 || lat_d > 90) return;
+
+    const cosH = (Math.sin(alt) - Math.sin(lat)*Math.sin(dec)) /
+                 (Math.cos(lat)*Math.cos(dec) + 1e-12);
+    if (Math.abs(cosH) > 1) return;
+
+    // sign of H: sin(H) = -cos(alt)*sin(az)/cos(dec)
+    const sinH_sign = -(Math.sin(az) >= 0 ? 1 : -1);
+    const H_rad = Math.acos(clamp(cosH,-1,1)) * sinH_sign;
+    const H_h = H_rad*RAD/15;
+
+    const lst = ((ra_deg/15 + H_h) % 24 + 24) % 24;
+    let lon = (lst - gst)*15;
+    lon = ((lon % 360) + 360) % 360;
+    if (lon > 180) lon -= 360;
+
+    results.push({ lat: lat_d, lon });
+  });
+  return results;
+}
+
+// Star direction (unit vec, fixed in world)
+// Y=NCP, X=RA=0, Z→-RA=6h
+function starDir(ra_deg, dec_deg) {
+  const ra = ra_deg*DEG, dc = dec_deg*DEG;
+  return new THREE.Vector3(
+    Math.cos(dc)*Math.cos(ra),
+    Math.sin(dc),
+    -Math.cos(dc)*Math.sin(ra)
+  );
+}
+
+// Observer local-frame position on unit Earth sphere
+function obsPos(lat, lon) {
+  const la=lat*DEG, lo=lon*DEG;
+  return new THREE.Vector3(
+    Math.cos(la)*Math.cos(lo),
+    Math.sin(la),
+    -Math.cos(la)*Math.sin(lo)
+  );
+}
+
+// Horizon great-circle points on celestial sphere radius R
+function horizonPts(zenithWorld, R=2.6) {
+  const n = zenithWorld.clone().normalize();
+  const tmp = Math.abs(n.y)<0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+  const u = new THREE.Vector3().crossVectors(n,tmp).normalize();
+  const v = new THREE.Vector3().crossVectors(n,u).normalize();
+  const pts=[];
+  for(let i=0;i<=72;i++){
+    const t=(i/72)*Math.PI*2;
+    pts.push(u.clone().multiplyScalar(R*Math.cos(t)).add(v.clone().multiplyScalar(R*Math.sin(t))));
+  }
+  return pts;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATE  (declared first to avoid TDZ errors)
+// ═══════════════════════════════════════════════════════════
+let gst = 0;
+let autoRot = false;
+let placing = null;
+let pointMode = false;
+let prevT = null;
+let modeState = {a:'fwd', b:'fwd'};
+
+// ═══════════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════
+const canvas = el('canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias: window.devicePixelRatio < 2});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x010307);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.01, 500);
+camera.position.set(0, 1.8, 4.5);
+camera.lookAt(0,0,0);
+
+const orbit = new THREE.OrbitControls(camera, canvas);
+orbit.enableDamping=true; orbit.dampingFactor=0.07;
+orbit.minDistance=1.6; orbit.maxDistance=14;
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x223355, 3));
+const sunL = new THREE.DirectionalLight(0x8899ff, 0.6);
+sunL.position.set(6,4,5); scene.add(sunL);
+
+// Background stars
+{
+  const g=new THREE.BufferGeometry();
+  const p=new Float32Array(3000*3);
+  for(let i=0;i<p.length;i++) p[i]=(Math.random()-.5)*300;
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0xffffff,size:.18,sizeAttenuation:true,transparent:true,opacity:.65})));
+}
+
+// ── Earth group (rotates) ──
+const earthGroup = new THREE.Group();
+scene.add(earthGroup);
+
+const earthMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1,64,64),
+  new THREE.MeshPhongMaterial({color:0x183055,emissive:0x040e1c,specular:0x1a3388,shininess:22})
+);
+earthGroup.add(earthMesh);
+
+// Earth grid
+const gridObjs = []; // kept for show/hide
+function buildGrid(){
+  const r=1.003;
+  for(let lat=-80;lat<=80;lat+=10){
+    const eq=lat===0;
+    const mat=new THREE.LineBasicMaterial({color:eq?0x3355aa:0x19294d,transparent:true,opacity:eq?.6:.32});
+    const pts=[];
+    const la=lat*DEG;
+    for(let lo=0;lo<=360;lo+=3)
+      pts.push(new THREE.Vector3(r*Math.cos(la)*Math.cos(lo*DEG),r*Math.sin(la),-r*Math.cos(la)*Math.sin(lo*DEG)));
+    const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
+    earthGroup.add(ln); gridObjs.push(ln);
+  }
+  for(let lon=0;lon<360;lon+=10){
+    const pm=lon===0;
+    const mat=new THREE.LineBasicMaterial({color:pm?0x3377aa:0x19294d,transparent:true,opacity:pm?.6:.32});
+    const pts=[];
+    const lo=lon*DEG;
+    for(let la=-90;la<=90;la+=3)
+      pts.push(new THREE.Vector3(r*Math.cos(la*DEG)*Math.cos(lo),r*Math.sin(la*DEG),-r*Math.cos(la*DEG)*Math.sin(lo)));
+    const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
+    earthGroup.add(ln); gridObjs.push(ln);
+  }
+}
+buildGrid();
+
+// Earth poles
+const poleN=new THREE.Mesh(new THREE.SphereGeometry(.022,8,8),new THREE.MeshBasicMaterial({color:0x6688ff}));
+poleN.position.set(0,1.005,0); earthGroup.add(poleN);
+
+// 자전축 (흰색 선, 양 극 너머까지)
+{
+  const axLen=3.2;
+  const m=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.55});
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,-axLen,0),new THREE.Vector3(0,axLen,0)]),m));
+
+  // 북극점 방향 화살 끝
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.04,.13,8),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55}));
+  tip.position.set(0,axLen+.065,0); scene.add(tip);
+
+  // "자전축" 텍스트 스프라이트
+  {
+    const cv=document.createElement('canvas'); cv.width=200; cv.height=64;
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='rgba(255,255,255,0.75)';
+    ctx.font='bold 44px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('자전축',100,32);
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}));
+    spr.scale.set(0.9,0.29,1);
+    spr.position.set(0,axLen+0.38,0);
+    scene.add(spr);
+  }
+
+  // 북극성 (Polaris) 위치 — RA 2h31m48.7s, Dec +89°15'50.8"
+  const polRA=(2+31/60+48.7/3600)*15;
+  const polDec=89+15/60+50.8/3600;
+  const polDir=starDir(polRA,polDec).multiplyScalar(axLen);
+  const polDot=new THREE.Mesh(new THREE.SphereGeometry(.07,14,14),new THREE.MeshBasicMaterial({color:0xffffff}));
+  polDot.position.copy(polDir); scene.add(polDot);
+  // "북극성" 텍스트
+  {
+    const cv=document.createElement('canvas'); cv.width=200; cv.height=64;
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='rgba(255,255,255,0.8)';
+    ctx.font='bold 40px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('북극성',8,32);
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthWrite:false}));
+    spr.scale.set(0.75,0.24,1);
+    spr.position.copy(polDir.clone().add(new THREE.Vector3(0.42,0.12,0)));
+    scene.add(spr);
+  }
+}
+
+// 일주 궤도 (별이 자전에 따라 그리는 원, 세계 좌표 고정) — 초기는 숨김
+let diurnalCircle=null;
+function updateDiurnalCircle(){
+  // 월드 공간 일주궤도는 더 이상 사용하지 않음 (반구 위에 표시)
+  if(diurnalCircle){scene.remove(diurnalCircle);diurnalCircle.geometry.dispose();diurnalCircle=null;}
+}
+
+// Celestial equator ring (fixed in world, perpendicular to Y=rotation axis → lies in XZ plane)
+{
+  const g=new THREE.TorusGeometry(2.7,.004,8,200);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x2244aa,transparent:true,opacity:.5}));
+  m.rotation.x=Math.PI/2; // XY평면(기본) → XZ평면(자전축에 수직) 으로 회전
+  scene.add(m);
+}
+
+// Vernal Equinox direction (RA=0, fixed) — store refs for visibility toggling
+const ve_pts=[new THREE.Vector3(),new THREE.Vector3(3.0,0,0)];
+const veLineObj=new THREE.Line(new THREE.BufferGeometry().setFromPoints(ve_pts),
+  new THREE.LineBasicMaterial({color:0x33ff88,transparent:true,opacity:.65}));
+scene.add(veLineObj);
+const veTipObj=new THREE.Mesh(new THREE.SphereGeometry(.055,10,10),new THREE.MeshBasicMaterial({color:0x33ff88}));
+veTipObj.position.set(3.0,0,0); scene.add(veTipObj);
+
+// ── Star direction (updated on RA/Dec change) ──
+let starLine=null, starDot=null;
+function setStarVisual(ra, dc){
+  if(starLine){scene.remove(starLine);starLine.geometry.dispose();}
+  if(starDot){scene.remove(starDot);}
+  const d=starDir(ra,dc).multiplyScalar(3.0);
+  starLine=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),d]),
+    new THREE.LineBasicMaterial({color:0xffcc00,transparent:true,opacity:.9}));
+  scene.add(starLine);
+  starDot=new THREE.Mesh(new THREE.SphereGeometry(.07,16,16),new THREE.MeshBasicMaterial({color:0xffee44}));
+  starDot.position.copy(d); scene.add(starDot);
+  // Hide immediately if already in point mode
+  if(pointMode){ starLine.visible=false; starDot.visible=false; }
+}
+
+// ── Observer pins ──
+const PIN_COLOR = {a:0xff4466, b:0x22ccff};
+const pinState   = {a:{lat:-22.677,lon:14.524}, b:{lat:37.459,lon:127.330}};
+const pinMeshes  = {a:null, b:null};
+const zenithArrs = {a:null, b:null};
+const horizLines = {a:null, b:null};
+const localFrameGroups = {a:null, b:null};
+const hemiFillMesh  = {a:null, b:null};  // 반구 fill 메시 참조 (투명도 실시간 조절용)
+const hemiFillDisk  = {a:null, b:null};  // 반구 바닥면 디스크 참조
+let hemiR = {a:1.8, b:1.45};            // 반구 반지름 (슬라이더로 조절)
+const invPinObjs = {a:[], b:[]};   // markers for inverse results
+
+function removePinMesh(id){
+  if(pinMeshes[id]){earthGroup.remove(pinMeshes[id]);}
+  if(zenithArrs[id]){earthGroup.remove(zenithArrs[id]);}
+  pinMeshes[id]=null; zenithArrs[id]=null;
+}
+function buildPinMesh(id){
+  removePinMesh(id);
+  if(pointMode) return; // no pin meshes in point mode
+  const {lat,lon}=pinState[id];
+  const pos=obsPos(lat,lon);
+
+  const grp=new THREE.Group();
+  grp.add(new THREE.Mesh(new THREE.SphereGeometry(.038,12,12),new THREE.MeshBasicMaterial({color:PIN_COLOR[id]})));
+  const stk=new THREE.Mesh(new THREE.CylinderGeometry(.007,.001,.14,6),new THREE.MeshBasicMaterial({color:PIN_COLOR[id]}));
+  stk.position.y=-.07; grp.add(stk);
+  grp.position.copy(pos);
+  grp.lookAt(pos.clone().multiplyScalar(2));
+  grp.rotateX(Math.PI/2);
+  earthGroup.add(grp);
+  pinMeshes[id]=grp;
+
+  // zenith stub
+  const zl=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([pos.clone(),pos.clone().multiplyScalar(1.22)]),
+    new THREE.LineBasicMaterial({color:PIN_COLOR[id],transparent:true,opacity:.4}));
+  earthGroup.add(zl);
+  zenithArrs[id]=zl;
+}
+
+function updateHorizonLine(id){
+  if(horizLines[id]){scene.remove(horizLines[id]);horizLines[id]=null;}
+  const ep=obsPos(pinState[id].lat,pinState[id].lon);
+  const wz=ep.clone().applyEuler(earthGroup.rotation);
+  const line=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(horizonPts(wz,2.65)),
+    new THREE.LineBasicMaterial({color:PIN_COLOR[id],transparent:true,opacity:.35}));
+  scene.add(line);
+  horizLines[id]=line;
+}
+
+// ── Local frame visualization (point mode) ──
+// Shows the Az/Alt measurement geometry for each observer
+function clearLocalFrame(id){
+  if(localFrameGroups[id]){scene.remove(localFrameGroups[id]);localFrameGroups[id]=null;}
+}
+
+function buildLocalFrame(id){
+  clearLocalFrame(id);
+  const {lat,lon}=pinState[id];
+  const ra=getRA(), dc=getDec();
+  const res=computeAzAlt(ra,dc,lat,lon,gst);
+
+  // ── World-space local axes ──
+  const earthLocal=obsPos(lat,lon);
+  const zenith=earthLocal.clone().applyEuler(earthGroup.rotation).normalize();
+  const up=new THREE.Vector3(0,1,0);
+  let northH=up.clone().sub(zenith.clone().multiplyScalar(up.dot(zenith)));
+  if(northH.length()<1e-6) northH.set(1,0,0); else northH.normalize();
+  const east=new THREE.Vector3().crossVectors(northH,zenith).normalize();
+
+  const R = hemiR[id];
+  const col=PIN_COLOR[id];
+  const grp=new THREE.Group();
+
+  const azRad=res.az*DEG;
+  const altRad=res.alt*DEG;
+  const aboveHorizon=res.alt>=0;
+
+  // ── 별 방향 (세계좌표 단위벡터)에서 직접 역산 ──
+  // sWorld에서 출발해야 zenith와의 관계가 수학적으로 보장됨
+  const sWorld=starDir(ra,dc).normalize();
+  const starOnSphere=sWorld.clone().multiplyScalar(R);
+
+  // sWorld를 zenith 성분과 수평 성분으로 분해
+  const dotSZ=sWorld.dot(zenith);                                  // = sin(alt)
+  const sHoriz=sWorld.clone().sub(zenith.clone().multiplyScalar(dotSZ)); // 수평 성분
+  const cosAlt=sHoriz.length();                                    // = cos(alt)
+
+  // azDir: sWorld의 실제 수평 방향 단위벡터 (res.az 수치가 아닌 sWorld에서 직접 계산)
+  const azDir=cosAlt>1e-6 ? sHoriz.clone().divideScalar(cosAlt) : northH.clone();
+
+  // 지평원 위 방위각 방향 점 (고도 호 시작점, 반지름 R)
+  const azOnHorizon=azDir.clone().multiplyScalar(R);
+
+  // 별의 지평면 정사영 = sWorld에서 zenith 성분 제거 → 바닥면에 수직 보장
+  // projPt = starOnSphere - zenith*(starOnSphere·zenith)
+  const projPt=sHoriz.clone().multiplyScalar(R);
+  // 검증: starOnSphere - projPt = zenith * R * dotSZ (zenith와 정확히 평행) ✓
+
+  // ── 1. 반구 채우기 (투명, 슬라이더로 투명도 조절) ──
+  {
+    const geo=new THREE.SphereGeometry(R,48,24,0,Math.PI*2,0,Math.PI/2);
+    const initOp = +el('op-'+id).value;
+    const mesh=new THREE.Mesh(geo,
+      new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:initOp,
+        side:THREE.BackSide,depthWrite:false}));
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),zenith);
+    grp.add(mesh);
+    hemiFillMesh[id]=mesh;  // 참조 저장
+  }
+
+  // ── 1b. 반구 바닥면 디스크 (반구와 살짝 다른 색, 같은 투명도 슬라이더) ──
+  {
+    const diskCol = id==='a' ? 0x991133 : 0x115577;  // 반구색보다 어두운 계열
+    const initOp = +el('op-'+id).value;
+    const geo = new THREE.CircleGeometry(R, 80);
+    const diskMat = new THREE.MeshBasicMaterial({
+      color: diskCol, transparent: true, opacity: initOp,
+      side: THREE.DoubleSide, depthWrite: false
+    });
+    const disk = new THREE.Mesh(geo, diskMat);
+    // CircleGeometry의 법선은 +Z → zenith 방향으로 회전
+    disk.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), zenith);
+    grp.add(disk);
+    hemiFillDisk[id] = disk;
+  }
+
+  // ── 2. 지평원 (반구 밑면) ──
+  {
+    const pts=[];
+    for(let i=0;i<=80;i++){
+      const t=(i/80)*Math.PI*2;
+      pts.push(northH.clone().multiplyScalar(R*Math.cos(t))
+                              .add(east.clone().multiplyScalar(R*Math.sin(t))));
+    }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.65})));
+  }
+
+  // ── 3. 고도 보조 링 (30°, 60°) ──
+  for(const a of [30,60]){
+    const rr=R*Math.cos(a*DEG), zz=R*Math.sin(a*DEG);
+    const pts=[];
+    for(let i=0;i<=72;i++){
+      const t=(i/72)*Math.PI*2;
+      pts.push(northH.clone().multiplyScalar(rr*Math.cos(t))
+                              .add(east.clone().multiplyScalar(rr*Math.sin(t)))
+                              .add(zenith.clone().multiplyScalar(zz)));
+    }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.12})));
+  }
+
+  // ── 4. 자오선 호 (북–천정) ──
+  {
+    const pts=[];
+    for(let i=0;i<=24;i++){
+      const t=(i/24)*Math.PI/2;
+      pts.push(northH.clone().multiplyScalar(R*Math.cos(t))
+                              .add(zenith.clone().multiplyScalar(R*Math.sin(t))));
+    }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.13})));
+  }
+
+  // ── 5. 천정 화살표 (흰색) ──
+  {
+    const zEnd=zenith.clone().multiplyScalar(R*1.08);
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),zEnd]),
+      new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.5})));
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(.03,.09,8),
+      new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.5}));
+    tip.position.copy(zenith.clone().multiplyScalar(R*1.08+.045));
+    tip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),zenith);
+    grp.add(tip);
+  }
+
+  // ── 6. 정북 방향 (밝은 회색) ──
+  {
+    const nEnd=northH.clone().multiplyScalar(R);
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),nEnd]),
+      new THREE.LineBasicMaterial({color:0xcccccc,transparent:true,opacity:0.7})));
+    const nTip=new THREE.Mesh(new THREE.SphereGeometry(.038,8,8),
+      new THREE.MeshBasicMaterial({color:0xcccccc}));
+    nTip.position.copy(nEnd); grp.add(nTip);
+  }
+
+  // ── 7. 별 방향 선 (노랑, origin → 구 위) ──
+  {
+    grp.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),starOnSphere.clone()]),
+      new THREE.LineBasicMaterial({color:0xffcc00,transparent:true,opacity:aboveHorizon?0.95:0.35})));
+    const sDot=new THREE.Mesh(new THREE.SphereGeometry(0.075,16,16),
+      new THREE.MeshBasicMaterial({color:0xffee44,transparent:true,opacity:aboveHorizon?1.0:0.35}));
+    sDot.position.copy(starOnSphere); grp.add(sDot);
+  }
+
+  // ── 8. 방위각 선 (관측자 색) ──
+  {
+    grp.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),azOnHorizon.clone()]),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.85})));
+  }
+
+  // ── 9. 방위각 호 — 정북선↔방위각선 사이, 지평원 위 (관측자 색, 반지름 R*0.38) ──
+  {
+    const r=R*0.38;
+    const steps=Math.max(16,Math.floor(Math.abs(res.az))+1);
+    const pts=[];
+    for(let i=0;i<=steps;i++){
+      const t=(i/steps)*azRad;
+      pts.push(northH.clone().multiplyScalar(r*Math.cos(t))
+                              .add(east.clone().multiplyScalar(r*Math.sin(t))));
+    }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:1.0})));
+  }
+
+  // ── 10. 고도 호 — 방위각선↔별선 사이, 구 표면 위 대원 호 (관측자 색, 반지름 R) ──
+  {
+    const steps=Math.max(16,Math.floor(Math.abs(res.alt))+1);
+    const pts=[];
+    for(let i=0;i<=steps;i++){
+      const t=(i/steps)*altRad;
+      pts.push(
+        azDir.clone().multiplyScalar(R*Math.cos(t))
+             .add(zenith.clone().multiplyScalar(R*Math.sin(t)))
+      );
+    }
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:1.0})));
+  }
+
+  // ── 11. 별의 지평면 정사영 (관측자 색) ──
+  // projPt = azDir * R * cos(alt)  (별을 지평면에 수직으로 내린 점)
+  {
+    // 수직 선분: projPt → starOnSphere (내린 발 → 별)
+    grp.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([projPt.clone(),starOnSphere.clone()]),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.7})));
+    // 수평 선분: origin → projPt (지평면 내)
+    grp.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),projPt.clone()]),
+      new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.55})));
+    // 정사영 점
+    const pDot=new THREE.Mesh(new THREE.SphereGeometry(.048,10,10),
+      new THREE.MeshBasicMaterial({color:col}));
+    pDot.position.copy(projPt); grp.add(pDot);
+    // 직각 표시 (정사영 위치에서 작은 ㄱ 기호)
+    if(aboveHorizon){
+      const s=0.065;
+      const corner=[
+        projPt.clone().add(zenith.clone().multiplyScalar(s)),
+        projPt.clone().add(zenith.clone().multiplyScalar(s)).add(azDir.clone().multiplyScalar(s)),
+        projPt.clone().add(azDir.clone().multiplyScalar(s))
+      ];
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(corner),
+        new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.65})));
+    }
+  }
+
+  // ── 12. 관측자 점 ──
+  grp.add(new THREE.Mesh(new THREE.SphereGeometry(.055,12,12),
+    new THREE.MeshBasicMaterial({color:col})));
+
+  // ── 13. N / E / S / W 방위 텍스트 ──
+  {
+    const r=new THREE.Color(col), hexStr='#'+r.getHexString();
+    const cardinals=[
+      {lbl:'N', dir:northH.clone()},
+      {lbl:'E', dir:east.clone()},
+      {lbl:'S', dir:northH.clone().negate()},
+      {lbl:'W', dir:east.clone().negate()},
+    ];
+    cardinals.forEach(({lbl,dir})=>{
+      const cv=document.createElement('canvas');
+      cv.width=128; cv.height=128;
+      const ctx=cv.getContext('2d');
+      ctx.clearRect(0,0,128,128);
+      ctx.fillStyle=hexStr;
+      ctx.font='bold 90px sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(lbl,64,68);
+      const tex=new THREE.CanvasTexture(cv);
+      const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+      spr.scale.set(0.32,0.32,1);
+      spr.position.copy(dir.multiplyScalar(R*1.18));
+      grp.add(spr);
+    });
+  }
+
+  // ── 14. 별의 일주 궤적 (24h GST 순환) ──
+  // 지평선 위: 반구 표면 (불투명), 지평선 아래: 반구 평면 아래로 연장 (반투명)
+  {
+    const STEPS = 480;
+    const trackCol = 0xffcc00;
+
+    // 모든 GST에서 3D 점 계산 (alt 부호 무관)
+    const allPts = [];
+    for(let i = 0; i <= STEPS; i++){
+      const gstT = (i / STEPS) * 24;
+      const r = computeAzAlt(ra, dc, lat, lon, gstT);
+      const azR = r.az * DEG;
+      const alR = r.alt * DEG;
+      const pt = northH.clone().multiplyScalar(R * Math.cos(alR) * Math.cos(azR))
+        .add(east.clone().multiplyScalar(R * Math.cos(alR) * Math.sin(azR)))
+        .add(zenith.clone().multiplyScalar(R * Math.sin(alR)));
+      allPts.push({pt, above: r.alt >= 0});
+    }
+
+    // 위/아래 구간을 분리해서 각기 다른 투명도로 그림
+    const matAbove = new THREE.LineBasicMaterial({color: trackCol, transparent: true, opacity: 0.85});
+    const matBelow = new THREE.LineBasicMaterial({color: trackCol, transparent: true, opacity: 0.22});
+
+    let curSeg = null, curAbove = null;
+    const flush = () => {
+      if(curSeg && curSeg.length >= 2){
+        grp.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(curSeg),
+          curAbove ? matAbove : matBelow
+        ));
+      }
+      curSeg = null;
+    };
+
+    allPts.forEach(({pt, above}) => {
+      if(curSeg === null || above !== curAbove){
+        flush();
+        curSeg = [];
+        curAbove = above;
+        // 이전 점이 있으면 경계점 공유 (끊김 없이)
+      }
+      curSeg.push(pt);
+    });
+    flush();
+  }
+
+  scene.add(grp);
+  localFrameGroups[id]=grp;
+}
+
+// Inverse mode: markers showing computed lat/lon positions on Earth
+function clearInvPins(id){
+  invPinObjs[id].forEach(o=>earthGroup.remove(o));
+  invPinObjs[id]=[];
+}
+function buildInvPins(id, solutions){
+  clearInvPins(id);
+  solutions.forEach((sol,i)=>{
+    const pos=obsPos(sol.lat,sol.lon);
+    const m=new THREE.Mesh(
+      new THREE.SphereGeometry(.05,12,12),
+      new THREE.MeshBasicMaterial({color: i===0?PIN_COLOR[id]:0xffaa00, transparent:true, opacity:.8})
+    );
+    m.position.copy(pos);
+    earthGroup.add(m);
+    invPinObjs[id].push(m);
+  });
+}
+
+// ── Init visuals ──
+buildPinMesh('a'); buildPinMesh('b');
+
+
+// ─ Format helpers ─
+function fmtDeg(d,dp=2){ return (d>=0?'+':'')+d.toFixed(dp)+'°'; }
+function fmtAz(d){ return d.toFixed(3)+'°'; }
+function fmtHa(h){
+  const sign=h<0?'−':'+';
+  const ah=Math.abs(h);
+  const hh=Math.floor(ah), mm=Math.floor((ah-hh)*60), ss=Math.floor(((ah-hh)*60-mm)*60);
+  return `${sign}${hh}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+}
+function fmtLST(h){
+  const hh=Math.floor(h), mm=Math.floor((h-hh)*60), ss=Math.floor(((h-hh)*60-mm)*60);
+  return `${String(hh).padStart(2,'0')}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+}
+function fmtGST(h){
+  const hh=Math.floor(h), mm=Math.floor((h-hh)*60), ss=Math.floor(((h-hh)*60-mm)*60);
+  return `GST: ${String(hh).padStart(2,'0')}h ${String(mm).padStart(2,'0')}m ${String(ss).padStart(2,'0')}s`;
+}
+
+// ─ Update results panels ─
+function updateResults(){
+  const ra=getRA(), dc=getDec();
+
+  ['a','b'].forEach(id=>{
+    if(modeState[id]==='fwd'){
+      const {lat,lon}=pinState[id];
+      const r=computeAzAlt(ra,dc,lat,lon,gst);
+      el(id+'-az').textContent=fmtAz(r.az);
+      const altEl=el(id+'-alt');
+      altEl.textContent=(r.alt>=0?'+':'')+r.alt.toFixed(3)+'°';
+      el(id+'-ha').textContent=fmtHa(r.ha);
+      el(id+'-lst').textContent=fmtLST(r.lst);
+      const visEl=el(id+'-vis');
+      if(r.alt>0){
+        visEl.className='visok'; visEl.textContent='✓ 지평선 위 — 관측 가능';
+      } else {
+        visEl.className='visno'; visEl.textContent='✗ 지평선 아래 — 관측 불가';
+      }
+    } else {
+      // inverse mode
+      const az_in=+el(id+'-az-in').value||0;
+      const alt_in=+el(id+'-alt-in').value||0;
+      const sols=computeLatLon(ra,dc,az_in,alt_in,gst);
+      const resEl=el(id+'-inv-result');
+      if(sols.length===0){
+        resEl.innerHTML='<span style="font-size:11px;color:#ff6644">해 없음 (불가능한 조합)</span>';
+        clearInvPins(id);
+      } else {
+        resEl.innerHTML=sols.map((s,i)=>`
+          <div class="sol-item">
+            <span style="color:${i===0?'#ff8866':'#ffbb44'};font-size:10px;min-width:14px">${i===0?'①':'②'}</span>
+            <span class="sol-val" style="color:${i===0?'#ffaa88':'#ffdd88'}">
+              ${fmtDeg(s.lat,3)}, ${fmtDeg(s.lon,3)}
+            </span>
+          </div>`).join('');
+        buildInvPins(id,sols);
+      }
+    }
+  });
+}
+
+function updateGST(){
+  el('gst-lbl').textContent=fmtGST(gst);
+}
+
+// ─ Point mode toggle ─
+function setPointMode(on){
+  pointMode=on;
+  earthMesh.visible=!on;
+  poleN.visible=!on;
+  gridObjs.forEach(o=>o.visible=!on);
+
+  // Hide global star & vernal equinox in point mode
+  // (local frames each draw their own star position on the hemisphere)
+  if(starLine) starLine.visible=!on;
+  if(starDot)  starDot.visible=!on;
+  veLineObj.visible=!on;
+  veTipObj.visible=!on;
+
+  if(on){
+    ['a','b'].forEach(id=>{
+      removePinMesh(id);
+      if(horizLines[id]){scene.remove(horizLines[id]);horizLines[id]=null;}
+      buildLocalFrame(id);
+    });
+  } else {
+    ['a','b'].forEach(id=>{
+      clearLocalFrame(id);
+      buildPinMesh(id);
+      updateHorizonLine(id);
+    });
+  }
+}
+
+el('chk-point').addEventListener('change',function(){
+  setPointMode(this.checked);
+  el('hemi-opacity-ctrl').style.display = this.checked ? 'block' : 'none';
+});
+
+// 반구 투명도 슬라이더
+['a','b'].forEach(id=>{
+  el('op-'+id).addEventListener('input', function(){
+    const v = +this.value;
+    el('op-'+id+'-lbl').textContent = Math.round(v*100)+'%';
+    if(hemiFillMesh[id]) hemiFillMesh[id].material.opacity = v;
+    if(hemiFillDisk[id]) hemiFillDisk[id].material.opacity = v;
+  });
+});
+
+// 반구 크기 슬라이더
+['a','b'].forEach(id=>{
+  el('sz-'+id).addEventListener('input', function(){
+    hemiR[id] = +this.value;
+    el('sz-'+id+'-lbl').textContent = hemiR[id].toFixed(2);
+    if(pointMode) buildLocalFrame(id);
+    if(obsView===id) applyCameraObsView(id);
+  });
+});
+
+// ─ Mode switch (fwd/inv per observer) ─
+function setMode(id, mode){
+  modeState[id]=mode;
+  el('fwd-'+id).style.display=mode==='fwd'?'block':'none';
+  el('inv-'+id).style.display=mode==='inv'?'block':'none';
+  el('tab-'+id+'-fwd').classList.toggle('active',mode==='fwd');
+  el('tab-'+id+'-inv').classList.toggle('active',mode==='inv');
+
+  if(mode==='fwd'){
+    clearInvPins(id);
+    buildPinMesh(id); // restore fwd pin
+    updateHorizonLine(id);
+  } else {
+    removePinMesh(id);
+    if(horizLines[id]){scene.remove(horizLines[id]);horizLines[id]=null;}
+  }
+  updateResults();
+}
+
+// ─ Pin placement (raycasting) ─
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
+
+canvas.addEventListener('click', e=>{
+  if(!placing) return;
+  const rect=canvas.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObject(earthMesh);
+  if(!hits.length) return;
+
+  const lp=earthGroup.worldToLocal(hits[0].point.clone());
+  const lat=Math.asin(clamp(lp.y,-1,1))*RAD;
+  const lon=Math.atan2(-lp.z,lp.x)*RAD;
+  pinState[placing].lat=lat;
+  pinState[placing].lon=lon;
+  el(placing+'-lat').value=lat.toFixed(3);
+  el(placing+'-lon').value=lon.toFixed(3);
+
+  const was=placing;
+  placing=null; orbit.enabled=true;
+  el('btn-'+was).classList.remove('on-a','on-b');
+  el('info').textContent='터치 드래그: 시점 회전 | 핀치: 줌';
+
+  buildPinMesh(was);
+  if(pointMode) buildLocalFrame(was);
+  updateHorizonLine(was);
+  updateResults();
+});
+
+// ─ Buttons ─
+el('btn-a').addEventListener('click',()=>{
+  if(placing==='a'){
+    placing=null;orbit.enabled=true;
+    el('btn-a').classList.remove('on-a');
+    el('info').textContent='터치 드래그: 시점 회전 | 핀치: 줌';
+  } else {
+    placing='a';orbit.enabled=false;
+    el('btn-a').classList.add('on-a');
+    el('btn-b').classList.remove('on-b');
+    el('info').textContent='🔴 지구 위 터치 → 관측자 A 위치 지정 (버튼 재터치 시 취소)';
+  }
+});
+el('btn-b').addEventListener('click',()=>{
+  if(placing==='b'){
+    placing=null;orbit.enabled=true;
+    el('btn-b').classList.remove('on-b');
+    el('info').textContent='터치 드래그: 시점 회전 | 핀치: 줌';
+  } else {
+    placing='b';orbit.enabled=false;
+    el('btn-b').classList.add('on-b');
+    el('btn-a').classList.remove('on-a');
+    el('info').textContent='🔵 지구 위 터치 → 관측자 B 위치 지정 (버튼 재터치 시 취소)';
+  }
+});
+el('btn-rot').addEventListener('click',()=>{
+  autoRot=!autoRot;
+  el('btn-rot').classList.toggle('on-g',autoRot);
+  el('btn-rot').textContent=autoRot?'⏹ 정지':'▶ 자전';
+  prevT=null;
+});
+let camLocked=false;
+el('btn-campos').addEventListener('click',()=>{
+  if(placing) return;
+  camLocked=!camLocked;
+  // orbit은 항상 활성 — 드래그 조작 가능하게 유지
+  prevGstForCam=gst;
+  el('btn-campos').classList.toggle('on-m', camLocked);
+  el('btn-campos').textContent=camLocked?'🔒 따라가는 중':'🔓 고정';
+  updateDiurnalCircle();
+});
+el('speed').addEventListener('input',function(){
+  el('speed-lbl').textContent=(+this.value).toFixed(2)+'×';
+});
+// ── 관측자 시점 ──
+let obsView=null; // 'a' | 'b' | null
+
+function getObsAxes(id){
+  const {lat,lon}=pinState[id];
+  const ep=obsPos(lat,lon);
+  const zenith=ep.clone().applyEuler(earthGroup.rotation).normalize();
+  const up2=new THREE.Vector3(0,1,0);
+  let northH=up2.clone().sub(zenith.clone().multiplyScalar(up2.dot(zenith)));
+  if(northH.length()<1e-6) northH.set(1,0,0); else northH.normalize();
+  const east=new THREE.Vector3().crossVectors(northH,zenith).normalize();
+  return {zenith,northH,east};
+}
+
+function applyCameraObsView(id){
+  const {zenith,northH,east}=getObsAxes(id);
+  const R2=hemiR[id];
+  // 서쪽에서 약간 높은 위치로 → 동쪽을 바라봄 → 북이 왼쪽, 남이 오른쪽 ✓
+  const camPos=east.clone().multiplyScalar(-R2*1.3)
+                    .add(zenith.clone().multiplyScalar(R2*0.6));
+  camera.position.copy(camPos);
+  orbit.target.set(0,0,0);
+  camera.up.copy(zenith);
+  orbit.update();
+}
+
+function setObsView(id,on){
+  if(on){
+    obsView=id;
+    const other=id==='a'?'b':'a';
+    const otherChk=el('obs-view-'+other);
+    if(otherChk) otherChk.checked=false;
+    applyCameraObsView(id);
+  } else {
+    if(obsView===id){ obsView=null; camera.up.set(0,1,0); orbit.update(); }
+  }
+  updateDiurnalCircle();
+}
+
+let prevGstForCam=0; // tracks last gst when camera was synced
+el('time-sl').addEventListener('input',function(){
+  const newGst=+this.value;
+  if(obsView || camLocked){
+    const deltaAngle=(newGst-prevGstForCam)*Math.PI/12;
+    const cosA=Math.cos(deltaAngle), sinA=Math.sin(deltaAngle);
+    const px=camera.position.x, pz=camera.position.z;
+    camera.position.x=px*cosA+pz*sinA;
+    camera.position.z=-px*sinA+pz*cosA;
+    if(obsView){
+      const ux=camera.up.x, uz=camera.up.z;
+      camera.up.x=ux*cosA+uz*sinA;
+      camera.up.z=-ux*sinA+uz*cosA;
+    } else {
+      camera.lookAt(0,0,0);
+    }
+  }
+  prevGstForCam=newGst;
+  gst=newGst;
+  earthGroup.rotation.y=gst*Math.PI/12;
+  updateGST();
+  updateResults();
+  if(!pointMode){updateHorizonLine('a');updateHorizonLine('b');}
+  if(pointMode){buildLocalFrame('a');buildLocalFrame('b');}
+  if(obsView) applyCameraObsView(obsView);
+});
+
+// Lat/lon input changes
+['a','b'].forEach(id=>{
+  ['lat','lon'].forEach(f=>{
+    el(id+'-'+f).addEventListener('change',()=>{
+      pinState[id].lat=+el(id+'-lat').value||0;
+      pinState[id].lon=+el(id+'-lon').value||0;
+      buildPinMesh(id);
+      if(pointMode) buildLocalFrame(id);
+      updateHorizonLine(id);
+      updateResults();
+    });
+  });
+  // Inverse inputs
+  ['az-in','alt-in'].forEach(f=>{
+    el(id+'-'+f).addEventListener('input', updateResults);
+  });
+});
+
+// Star coord inputs
+['ra-h','ra-m','ra-s','dc-d','dc-m','dc-s'].forEach(id=>{
+  el(id).addEventListener('input',()=>{
+    setStarVisual(getRA(),getDec());
+    if(pointMode){buildLocalFrame('a');buildLocalFrame('b');}
+    updateResults();
+    updateDiurnalCircle();
+  });
+});
+
+// ─ DMS Converter ─
+function updateConv(){
+  const d = Math.abs(+el('cv-d').value||0);
+  const m = +el('cv-m').value||0;
+  const s = +el('cv-s').value||0;
+  const sign = document.querySelector('input[name=cv-sign]:checked').value === '-1' ? -1 : 1;
+  const dec = sign * (d + m/60 + s/3600);
+  el('cv-result').textContent = dec.toFixed(6) + '°';
+}
+['cv-d','cv-m','cv-s'].forEach(id => el(id).addEventListener('input', updateConv));
+document.querySelectorAll('input[name=cv-sign]').forEach(r => r.addEventListener('change', updateConv));
+el('cv-copy').addEventListener('click', ()=>{
+  const txt = el('cv-result').textContent.replace('°','');
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn = el('cv-copy');
+    btn.textContent='✓ 복사됨'; btn.style.color='#88ffaa';
+    setTimeout(()=>{ btn.textContent='복사'; btn.style.color=''; }, 1500);
+  });
+});
+updateConv();
+updateDiurnalCircle();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════
+let frameCount=0;
+function animate(ts){
+  requestAnimationFrame(animate);
+
+  if(autoRot){
+    if(prevT!==null){
+      const dt=(ts-prevT)/1000;
+      const speed=+el('speed').value;
+      const deltaAngle = dt * speed * Math.PI / 12; // radians this frame
+      gst=(gst + dt*speed) % 24;
+      earthGroup.rotation.y = gst * Math.PI / 12;
+      el('time-sl').value=gst;
+      updateGST();
+      updateResults();
+
+      // Camera follows Earth rotation (Y축 delta 회전, 거리 보존 → zoom 유지)
+      if(obsView || camLocked){
+        const cosA=Math.cos(deltaAngle), sinA=Math.sin(deltaAngle);
+        const px=camera.position.x, pz=camera.position.z;
+        camera.position.x=px*cosA+pz*sinA;
+        camera.position.z=-px*sinA+pz*cosA;
+        if(obsView){
+          // up 벡터도 함께 회전 (zenith가 지구와 함께 돌기 때문)
+          const ux=camera.up.x, uz=camera.up.z;
+          camera.up.x=ux*cosA+uz*sinA;
+          camera.up.z=-ux*sinA+uz*cosA;
+        } else {
+          camera.lookAt(0,0,0);
+        }
+      }
+
+      // Update horizon lines and local frames at reduced rate (every 3 frames)
+      frameCount++;
+      if(frameCount%3===0){
+        if(!pointMode){updateHorizonLine('a');updateHorizonLine('b');}
+        if(pointMode){buildLocalFrame('a');buildLocalFrame('b');}
+      }
+    }
+    prevT=ts;
+  } else {
+    prevT=null;
+  }
+
+  orbit.update();
+  renderer.render(scene,camera);
+}
+
+// ─ Init ─
+setStarVisual(getRA(),getDec());
+updateHorizonLine('a'); updateHorizonLine('b');
+updateResults(); updateGST();
+animate(0);
+</script>
+</body>
+</html>
