@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에너지 전환과 보존 발표 주제</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+    background: #f0f4f8;
+    padding: 32px 16px;
+    color: #1a1a2e;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: #16213e;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 28px;
+  }
+  .steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+  .step {
+    background: #e0e7ff;
+    color: #3730a3;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .part-section { margin-bottom: 20px; }
+
+  .part-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: opacity 0.15s;
+  }
+  .part-header:hover { opacity: 0.9; }
+  .part-header .arrow {
+    font-size: 1.1rem;
+    transition: transform 0.3s;
+  }
+  .part-header.open .arrow { transform: rotate(180deg); }
+
+  .part-body {
+    display: none;
+    padding: 12px 4px 4px;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .part-body.open { display: flex; }
+
+  .topic-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .topic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 18px;
+    cursor: pointer;
+    user-select: none;
+    gap: 12px;
+  }
+  .topic-header:hover { background: #f8f8ff; }
+  .topic-num {
+    background: #667eea;
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .topic-title {
+    flex: 1;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1a1a2e;
+    line-height: 1.4;
+  }
+  .topic-arrow {
+    font-size: 0.9rem;
+    color: #888;
+    flex-shrink: 0;
+    transition: transform 0.3s;
+  }
+  .topic-header.open .topic-arrow { transform: rotate(180deg); }
+
+  .topic-body {
+    display: none;
+    padding: 0 18px 16px 58px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .topic-body.open { display: block; }
+
+  .label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .content-text {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: #333;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚡ 에너지 전환과 보존 발표 주제</h1>
+<div class="subtitle">파트를 클릭해서 주제를 확인하세요</div>
+
+<div class="steps">
+  <span class="step">① 발표 주제 선정</span>
+  <span class="step">② 발표 자료 제작</span>
+  <span class="step">③ 발표 대본 작성</span>
+  <span class="step">④ 예상 질문 4개↑</span>
+</div>
+
+<!-- PART 1 -->
+<div class="part-section">
+  <div class="part-header" onclick="togglePart(this)">
+    <span>🏠 PART 1. 슬기로운 가정생활: 소비 전력과 전기 요금</span>
+    <span class="arrow">▼</span>
+  </div>
+  <div class="part-body">
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">1</div>
+        <div class="topic-title">우리 집 '전기 먹는 하마'는 누구일까? (가전제품 소비 전력 비교)</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">전자레인지(약 800W), 전기밥솥(약 1,000W), 에어컨(약 1,300W), 다리미(약 1,200W) 등 가전제품의 소비 전력을 비교하는 주제입니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">주로 '열에너지'를 발생시키는 전기난로나 전기밥솥 같은 기구가 '빛에너지'를 내는 조명 기구보다 전기를 훨씬 많이 쓴다는 사실을 비교해 보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">2</div>
+        <div class="topic-title">여름철 에어컨 vs 선풍기, 실제 전기 요금은 얼마나 차이 날까?</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">소비 전력이 1,000W 이상인 에어컨과 40~50W에 불과한 선풍기의 전력량을 시간 단위로 비교 계산해 보는 주제입니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">에어컨의 설정 온도를 1℃만 높여도 전기 사용료를 40%나 절감할 수 있다는 사실과 선풍기를 함께 틀었을 때의 냉방 효율 등 '슬기로운 에어컨 사용법'을 제안해 보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">3</div>
+        <div class="topic-title">펑펑 쓰다간 파산? '전력량 관리 게임'으로 알아보는 누진세의 공포</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">한 달 전력 사용량에 따라 전기 요금이 급증하는 '누진세'의 개념을 파헤칩니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">전력량 관리 게임의 규칙처럼 200kWh 이하일 때는 1kWh당 120원이지만, 400kWh를 초과하면 300원으로 크게 뛰는 요금 폭탄의 원리를 재미있게 분석해 보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">4</div>
+        <div class="topic-title">헤어드라이어 속에는 어떤 에너지 전환이 숨어있을까?</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">매일 아침 사용하는 헤어드라이어(소비 전력 약 1,000W) 내부의 에너지 변신을 다룹니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">전기 에너지가 날개를 돌리는 '운동 에너지'와 뜨거운 바람을 만드는 '열에너지'로 동시에 전환된다는 점을 설명하고, 이 과정에서 에너지의 총량은 항상 보존된다는 법칙을 증명해 보세요.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PART 2 -->
+<div class="part-section">
+  <div class="part-header" onclick="togglePart(this)">
+    <span>⚡ PART 2. 내가 만드는 에너지: 발전의 원리와 우리나라 발전소</span>
+    <span class="arrow">▼</span>
+  </div>
+  <div class="part-body">
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">5</div>
+        <div class="topic-title">자석과 코일만 있으면 나도 발전소장! (간이 발전기의 원리)</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">전지가 없어도 흔들기만 하면 불이 켜지는 간이 발전기나 자전거 전조등의 원리를 설명합니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">코일 주위에서 자석이 움직일 때 전기 에너지가 생성되는 원리, 즉 '움직이는 자석의 역학적 에너지가 전기 에너지로 전환되는 과정'을 친구들에게 쉽게 설명해 주세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">6</div>
+        <div class="topic-title">우리나라 발전 비율 1위 '화력 발전', 이대로 괜찮을까?</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">우리나라 전력의 약 59%를 책임지는 화력 발전의 장단점을 비판적으로 바라보는 주제입니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">'열에너지 → 수증기의 운동 에너지 → 터빈의 운동 에너지 → 전기 에너지'로 이어지는 전환 과정을 설명하고, 가격이 저렴한 장점 대비 온실가스 배출 등 환경 오염 문제의 심각성을 꼬집어 보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">7</div>
+        <div class="topic-title">가성비 끝판왕 vs 위험천만! 두 얼굴의 '원자력 발전'</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">온실가스를 배출하지 않으면서도 발전 효율이 매우 높아 우리나라 발전의 31~32%를 차지하는 원자력 발전을 다룹니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">훌륭한 가성비와 날씨에 영향을 받지 않는다는 강력한 장점 이면에, 방사능 폐기물 처리 문제와 사고 발생 시 치명적인 피해라는 단점이 공존한다는 딜레마를 분석해 보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">8</div>
+        <div class="topic-title">태양광 패널, 과연 전기를 얼마나 만들까? (태양광 발전)</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">무한하고 친환경적인 에너지인 태양광 발전의 원리(빛에너지 → 전기 에너지)를 탐구합니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">친환경적이지만 왜 아직 우리나라의 발전 비중이 4% 정도밖에 안 되는지, 넓은 설치 면적이 필요하고 날씨에 영향을 크게 받는다는 단점과 연관 지어 생각해보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">9</div>
+        <div class="topic-title">바다 한가운데에 거대한 바람개비를 짓는 이유는? (해상 풍력 발전)</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">육지가 아닌 바다 위에 풍력 발전기를 짓는 이유를 '바람의 운동 에너지 → 전기 에너지' 전환과 함께 소개합니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">풍속이 높고 안정적이며 부지 걱정이 없다는 장점이 있음에도 불구하고 발전 비중이 0.05%에 불과한 이유에 대해 의문을 던져보세요.</div>
+      </div>
+    </div>
+
+    <div class="topic-card">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <div class="topic-num">10</div>
+        <div class="topic-title">우리 동네에 발전소를 짓는다면 어떤 발전소가 좋을까?</div>
+        <span class="topic-arrow">▼</span>
+      </div>
+      <div class="topic-body">
+        <div class="label">어떤 주제인가요?</div>
+        <div class="content-text">지형적 특성과 자연환경을 고려해 가장 적합한 발전 방식을 기획해 보는 종합 문제 해결형 주제입니다.</div>
+        <div class="label">탐구 포인트</div>
+        <div class="content-text">24시간 발전이 가능하지만 지형적 제한과 설치 비용이 드는 '지열 발전(지열의 열에너지 → 운동 에너지 → 전기 에너지)', 친환경적이나 댐 건설 비용이 드는 '수력 발전' 등 다양한 방식의 장단점을 종합적으로 비교하여 우리 지역 맞춤형 발전소를 제안해 보세요.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function togglePart(header) {
+    header.classList.toggle('open');
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+  }
+
+  function toggleTopic(header) {
+    header.classList.toggle('open');
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
