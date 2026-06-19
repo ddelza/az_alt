@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 화학 실험 전람회 동료평가</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: '맑은 고딕', sans-serif; background: #eef2f7; min-height: 100vh; padding: 1.5rem 1rem; }
+    .container { max-width: 640px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 16px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .header { margin-bottom: 1.5rem; }
+    .header h1 { font-size: 1.25rem; color: #1a202c; }
+    .header p { font-size: 0.85rem; color: #718096; margin-top: 4px; }
+    .steps { display: flex; align-items: center; gap: 6px; margin-bottom: 1.5rem; }
+    .step-dot { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; background: #e2e8f0; color: #a0aec0; }
+    .step-dot.active { background: #4f8ef7; color: #fff; }
+    .step-dot.done { background: #48bb78; color: #fff; }
+    .step-line { flex: 1; height: 2px; background: #e2e8f0; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.82rem; color: #4a5568; font-weight: 600; margin-bottom: 6px; }
+    select, textarea { width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; color: #2d3748; background: #f7fafc; }
+    select:disabled { color: #a0aec0; }
+    textarea { resize: vertical; min-height: 80px; }
+    .btn { display: block; width: 100%; padding: 0.8rem; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    .btn-primary { background: #4f8ef7; color: #fff; margin-top: 0.5rem; }
+    .btn-back { background: #edf2f7; color: #4a5568; margin-top: 0.5rem; }
+    .btn-reset { background: #48bb78; color: #fff; margin-top: 1rem; }
+    .info-box { background: #ebf8ff; border-left: 4px solid #4f8ef7; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.88rem; color: #2b6cb0; margin-bottom: 1.2rem; }
+    .eval-row { padding: 1rem 0; border-bottom: 1px solid #f0f4f8; }
+    .eval-row:last-child { border-bottom: none; }
+    .eval-row .member { font-size: 0.95rem; font-weight: 700; color: #2d3748; margin-bottom: 6px; }
+    .success-screen { text-align: center; padding: 1rem 0; }
+    .success-screen .icon { font-size: 3.5rem; margin-bottom: 0.75rem; }
+    .success-screen h2 { color: #276749; font-size: 1.2rem; }
+    .success-screen p { color: #718096; font-size: 0.88rem; margin-top: 6px; }
+    .error { color: #e53e3e; font-size: 0.82rem; margin-top: 6px; }
+    .loading { text-align: center; color: #718096; font-size: 0.9rem; padding: 1rem 0; display: none; }
+    .step { display: none; }
+    .step.active { display: block; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h1>2026 화학 실험 전람회</h1>
+      <p>모둠 동료평가</p>
+    </div>
+    <div class="steps">
+      <div class="step-dot active" id="dot1">1</div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot2">2</div>
+      <div class="step-line"></div>
+      <div class="step-dot" id="dot3">3</div>
+    </div>
+    <div class="step active" id="step1">
+      <div class="field">
+        <label>반 선택</label>
+        <select id="selClass" onchange="onClassChange()">
+          <option value="">-- 반을 선택하세요 --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>모둠(주제) 선택</label>
+        <select id="selTopic" disabled onchange="onTopicChange()">
+          <option value="">-- 반을 먼저 선택하세요 --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>내 이름 선택</label>
+        <select id="selName" disabled>
+          <option value="">-- 모둠을 먼저 선택하세요 --</option>
+        </select>
+      </div>
+      <p id="err1" class="error"></p>
+      <button class="btn btn-primary" onclick="goStep2()">다음 →</button>
+    </div>
+    <div class="step" id="step2">
+      <div class="info-box" id="infoBox"></div>
+      <div id="evalForm"></div>
+      <p id="err2" class="error"></p>
+      <button class="btn btn-primary" onclick="submitForm()">제출하기</button>
+      <button class="btn btn-back" onclick="goStep1()">← 이전</button>
+    </div>
+    <div class="step" id="step3">
+      <div class="success-screen">
+        <div class="icon">✅</div>
+        <h2>제출 완료!</h2>
+        <p>동료평가가 성공적으로 저장되었습니다.</p>
+        <button class="btn btn-reset" onclick="resetForm()">처음으로 돌아가기</button>
+      </div>
+    </div>
+    <div class="loading" id="loading">⏳ 처리 중...</div>
+  </div>
+</div>
+<script>
+// ★ GAS를 새 버전으로 배포한 뒤 URL을 아래에 붙여넣으세요
+var API_URL = 'https://script.google.com/macros/s/AKfycbydXdryZnKjTeo8f2hH8m--gqE3_DBhugdoXY__Odew1eIGHYd6bONObEr5cGdC6wY/exec';
+
+var topicMap = {};
+var myName = '';
+var myClass = '';
+var peerList = [];
+
+function api(params) {
+  var qs = Object.keys(params).map(function(k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  }).join('&');
+  return fetch(API_URL + '?' + qs).then(function(r) { return r.json(); });
+}
+
+window.onload = function() {
+  var errEl = document.getElementById('err1');
+  errEl.textContent = '⏳ 반 목록 불러오는 중...';
+  errEl.style.color = '#718096';
+  api({ action: 'getClasses' })
+    .then(function(result) {
+      errEl.textContent = '';
+      if (!result || result.error) {
+        errEl.style.color = '#e53e3e';
+        errEl.textContent = '❌ 서버 오류: ' + (result ? result.error : '응답 없음');
+        return;
+      }
+      if (result.length === 0) {
+        errEl.style.color = '#e53e3e';
+        errEl.textContent = '❌ 데이터 없음: 모둠편성 시트 확인 필요';
+        return;
+      }
+      var sel = document.getElementById('selClass');
+      for (var i = 0; i < result.length; i++) {
+        var opt = document.createElement('option');
+        opt.value = result[i];
+        opt.textContent = result[i] + '반';
+        sel.appendChild(opt);
+      }
+    })
+    .catch(function(err) {
+      errEl.style.color = '#e53e3e';
+      errEl.textContent = '❌ 오류: ' + err.message;
+    });
+};
+
+function onClassChange() {
+  var classNum = document.getElementById('selClass').value;
+  var selTopic = document.getElementById('selTopic');
+  var selName = document.getElementById('selName');
+  selTopic.innerHTML = '<option value="">-- 모둠을 선택하세요 --</option>';
+  selName.innerHTML = '<option value="">-- 모둠을 먼저 선택하세요 --</option>';
+  selTopic.disabled = true;
+  selName.disabled = true;
+  topicMap = {};
+  if (!classNum) return;
+  api({ action: 'getTopics', classNum: classNum })
+    .then(function(topics) {
+      if (!topics || topics.error) {
+        document.getElementById('err1').textContent = '❌ 모둠 오류: ' + (topics ? topics.error : '없음');
+        return;
+      }
+      for (var i = 0; i < topics.length; i++) {
+        var t = topics[i];
+        topicMap[t.modum] = t;
+        var opt = document.createElement('option');
+        opt.value = t.modum;
+        opt.textContent = '모둠 ' + t.modum + ' — ' + t.label;
+        selTopic.appendChild(opt);
+      }
+      selTopic.disabled = false;
+    })
+    .catch(function(err) {
+      document.getElementById('err1').textContent = '❌ 모둠 로드 실패: ' + err.message;
+    });
+}
+
+function onTopicChange() {
+  var modumKey = document.getElementById('selTopic').value;
+  var selName = document.getElementById('selName');
+  selName.innerHTML = '<option value="">-- 내 이름을 선택하세요 --</option>';
+  selName.disabled = true;
+  if (!modumKey) return;
+  var members = topicMap[modumKey].members;
+  for (var i = 0; i < members.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = members[i];
+    opt.textContent = members[i];
+    selName.appendChild(opt);
+  }
+  selName.disabled = false;
+}
+
+function goStep2() {
+  myClass = document.getElementById('selClass').value;
+  var modumKey = document.getElementById('selTopic').value;
+  myName = document.getElementById('selName').value;
+  var errEl = document.getElementById('err1');
+  if (!myClass || !modumKey || !myName) {
+    errEl.textContent = '반, 모둠, 이름을 모두 선택해 주세요.';
+    return;
+  }
+  errEl.textContent = '';
+  var allMembers = topicMap[modumKey].members;
+  peerList = [];
+  for (var i = 0; i < allMembers.length; i++) {
+    if (allMembers[i] !== myName) peerList.push(allMembers[i]);
+  }
+  var infoEl = document.getElementById('infoBox');
+  infoEl.innerHTML = '';
+  var b1 = document.createElement('strong');
+  b1.textContent = myClass + '반 모둠 ' + modumKey;
+  infoEl.appendChild(b1);
+  infoEl.appendChild(document.createTextNode(' | 평가자: '));
+  var b2 = document.createElement('strong');
+  b2.textContent = myName;
+  infoEl.appendChild(b2);
+  infoEl.appendChild(document.createTextNode(' (총 ' + peerList.length + '명)'));
+  var form = document.getElementById('evalForm');
+  form.innerHTML = '';
+  var desc = document.createElement('p');
+  desc.style.cssText = 'font-size:.85rem;color:#718096;margin-bottom:.8rem;';
+  desc.textContent = '아래 모둠원들의 기여도와 태도를 자유롭게 서술하세요.';
+  form.appendChild(desc);
+  for (var j = 0; j < peerList.length; j++) {
+    var div = document.createElement('div');
+    div.className = 'eval-row';
+    var memberDiv = document.createElement('div');
+    memberDiv.className = 'member';
+    memberDiv.textContent = (j + 1) + '. ' + peerList[j];
+    var ta = document.createElement('textarea');
+    ta.id = 'ev' + j;
+    ta.placeholder = peerList[j] + '의 활동 기여도, 태도 등을 작성해 주세요.';
+    div.appendChild(memberDiv);
+    div.appendChild(ta);
+    form.appendChild(div);
+  }
+  showStep(2);
+}
+
+function submitForm() {
+  var errEl = document.getElementById('err2');
+  for (var i = 0; i < peerList.length; i++) {
+    if (!document.getElementById('ev' + i).value.trim()) {
+      errEl.textContent = '"' + peerList[i] + '"에 대한 평가를 입력해 주세요.';
+      return;
+    }
+  }
+  errEl.textContent = '';
+  document.getElementById('loading').style.display = 'block';
+  var peers = [];
+  for (var j = 0; j < peerList.length; j++) {
+    peers.push({ name: peerList[j], comment: document.getElementById('ev' + j).value.trim() });
+  }
+  var payload = { evaluatorName: myName, evaluatorClass: myClass, peers: peers };
+  api({ action: 'submit', payload: JSON.stringify(payload) })
+    .then(function(res) {
+      document.getElementById('loading').style.display = 'none';
+      if (res.success) {
+        showStep(3);
+      } else {
+        document.getElementById('err2').textContent = '오류: ' + res.message;
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('err2').textContent = '오류: ' + err.message;
+    });
+}
+
+function goStep1() { showStep(1); }
+
+function resetForm() {
+  document.getElementById('selClass').value = '';
+  onClassChange();
+  showStep(1);
+}
+
+function showStep(n) {
+  var steps = document.querySelectorAll('.step');
+  for (var i = 0; i < steps.length; i++) steps[i].classList.remove('active');
+  document.getElementById('step' + n).classList.add('active');
+  for (var d = 1; d <= 3; d++) {
+    var dot = document.getElementById('dot' + d);
+    dot.className = 'step-dot' + (d < n ? ' done' : d === n ? ' active' : '');
+  }
+}
+</script>
+</body>
+</html>
