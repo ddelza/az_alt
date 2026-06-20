@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>성찰일지 뷰어</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    background: #f0f4f8;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 24px 32px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  /* 검색 패널 */
+  .search-panel {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+  }
+
+  .search-panel h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #333;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 600px) {
+    .filter-row { grid-template-columns: 1fr 1fr; }
+    .filter-row .name-wrap { grid-column: 1 / -1; }
+  }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+  }
+
+  select, input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    background: #fafafa;
+    color: #1a1a2e;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  select:focus, input:focus {
+    border-color: #4f8ef7;
+    background: white;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 11px 28px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: #4f8ef7;
+    color: white;
+  }
+
+  .btn-primary:hover { background: #3a7be0; }
+  .btn-primary:disabled { background: #b0c8f7; cursor: default; }
+
+  .btn-secondary {
+    background: #f0f0f0;
+    color: #444;
+  }
+
+  .btn-secondary:hover { background: #e0e0e0; }
+
+  /* 학생 목록 */
+  .student-list-panel {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+    display: none;
+  }
+
+  .student-list-panel h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+  }
+
+  .student-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .student-chip {
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #e0e7ff;
+    background: #f5f7ff;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #334;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .student-chip:hover {
+    border-color: #4f8ef7;
+    background: #e8f0fe;
+    color: #1a1a2e;
+  }
+
+  .student-chip.selected {
+    border-color: #4f8ef7;
+    background: #4f8ef7;
+    color: white;
+    font-weight: 600;
+  }
+
+  .student-chip .chip-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+  }
+
+  .student-chip .chip-meta {
+    font-size: 0.72rem;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+
+  .chip-counts {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+
+  .count-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 20px;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .count-tag.incomplete {
+    background: #fff0f0;
+    color: #c62828;
+  }
+
+  .student-chip.selected .count-tag {
+    background: rgba(255,255,255,0.25);
+    color: white;
+  }
+
+  /* 결과 패널 */
+  .result-panel {
+    display: none;
+  }
+
+  .reflection-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+
+  .reflection-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #f0f4f8;
+  }
+
+  .source-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .badge-booth {
+    background: #fff3e0;
+    color: #e65100;
+  }
+
+  .badge-inquiry {
+    background: #e8f5e9;
+    color: #1b5e20;
+  }
+
+  .card-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1a1a2e;
+  }
+
+  .qa-item {
+    margin-bottom: 18px;
+  }
+
+  .qa-item:last-child { margin-bottom: 0; }
+
+  .question {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4f8ef7;
+    margin-bottom: 6px;
+    padding-left: 4px;
+    border-left: 3px solid #4f8ef7;
+    line-height: 1.4;
+  }
+
+  .answer {
+    font-size: 0.92rem;
+    color: #2c2c2c;
+    line-height: 1.7;
+    background: #f8faff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+  }
+
+  .answer.empty {
+    color: #aaa;
+    font-style: italic;
+  }
+
+  .multi-response-notice {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  .response-divider {
+    border: none;
+    border-top: 1px dashed #ddd;
+    margin: 14px 0;
+  }
+
+  /* 상태 메시지 */
+  .status-msg {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+    font-size: 0.9rem;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border: 3px solid #e0e7ff;
+    border-top-color: #4f8ef7;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .no-result {
+    text-align: center;
+    padding: 30px;
+    color: #bbb;
+    font-size: 0.9rem;
+  }
+
+  /* 청취자 평가 카드 */
+  .aud-card { background: white; border-radius: 16px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .aud-card-title { font-size: 0.85rem; font-weight: 700; color: #555; margin-bottom: 14px; }
+  .aud-stat-row-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  @media (max-width: 600px) { .aud-stat-row-wrap { grid-template-columns: 1fr; } }
+  .aud-stat-box { background: #fafafa; border-radius: 10px; padding: 13px; }
+  .aud-stat-box-label { font-size: 0.8rem; font-weight: 700; margin-bottom: 9px; padding: 3px 10px; border-radius: 20px; display: inline-block; }
+  .given-label { background: #e0f7fa; color: #00695c; }
+  .recv-label  { background: #fce4ec; color: #880e4f; }
+  .aud-stat-row { display: flex; justify-content: space-between; font-size: 0.83rem; padding: 4px 0; border-bottom: 1px solid #f0f0f0; color: #555; }
+  .aud-stat-row span:last-child { font-weight: 600; color: #1a1a2e; }
+  .aud-section { margin-top: 14px; }
+  .aud-section-title { font-size: 0.83rem; font-weight: 700; color: #444; margin-bottom: 6px; }
+  .aud-items-toggle { font-size: 0.78rem; color: #4f8ef7; cursor: pointer; font-weight: 600; margin-bottom: 4px; }
+  .aud-no-item { color: #bbb; font-size: 0.82rem; padding: 6px 0; }
+  /* 해준 평가 */
+  .aud-given-item { background: #f5fffe; border: 1px solid #b2dfdb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .aud-session-label { font-size: 0.75rem; font-weight: 700; color: #00695c; margin-bottom: 8px; }
+  .aud-overall-label { font-size: 0.75rem; font-weight: 700; color: #888; margin-bottom: 3px; }
+  .aud-overall-text { font-size: 0.88rem; color: #333; line-height: 1.6; background: white; border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; white-space: pre-wrap; }
+  .aud-indiv-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 5px; font-size: 0.85rem; }
+  .aud-target-name { min-width: 48px; font-weight: 700; color: #0f3460; flex-shrink: 0; }
+  .aud-indiv-comment { color: #333; line-height: 1.5; white-space: pre-wrap; }
+  /* 받은 평가 */
+  .aud-recv-item { background: #fdf6ff; border: 1px solid #e1bee7; border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; }
+  .aud-recv-writer { font-size: 0.75rem; font-weight: 700; color: #880e4f; margin-bottom: 5px; }
+  .aud-recv-comment { font-size: 0.88rem; color: #333; line-height: 1.6; white-space: pre-wrap; }
+
+  /* 링크 카드 */
+  .link-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+
+  .link-card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 12px;
+  }
+
+  .link-btn-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .link-btn {
+    display: inline-block;
+    padding: 9px 20px;
+    border-radius: 8px;
+    background: #4f8ef7;
+    color: white;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .link-btn:hover { background: #3a7be0; }
+
+  /* 동료평가 칩 태그 */
+  .count-tag.peer-tag {
+    background: #f3e8ff;
+    color: #6b21a8;
+  }
+  .student-chip.selected .count-tag.peer-tag {
+    background: rgba(255,255,255,0.25);
+    color: white;
+  }
+
+  /* 동료평가 카드 */
+  .peer-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+  }
+  .peer-card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 14px;
+  }
+  .peer-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 600px) { .peer-cols { grid-template-columns: 1fr; } }
+  .peer-col {
+    background: #fafafa;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .peer-col-header {
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+  .given-header    { background: #e0f2fe; color: #0369a1; }
+  .received-header { background: #fce7f3; color: #9d174d; }
+  .peer-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .peer-stat-label { color: #666; }
+  .peer-stat-val   { font-weight: 600; color: #1a1a2e; }
+  .rank-badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: #f0f4f8;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: #334;
+  }
+  .peer-items-toggle {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: #4f8ef7;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .peer-items { margin-top: 8px; }
+  .peer-item {
+    background: white;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+    border: 1px solid #e8e8e8;
+  }
+  .peer-item-q {
+    font-weight: 700;
+    color: #4f8ef7;
+    margin: 6px 0 2px;
+    font-size: 0.78rem;
+  }
+  .peer-item-a {
+    color: #333;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .peer-no-item { color: #bbb; font-size: 0.82rem; padding: 4px 0; }
+
+  .link-btn.disabled {
+    background: #e8e8e8;
+    color: #aaa;
+    cursor: default;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 성찰일지 뷰어</h1>
+  <p>부스 운영 및 과학 전시 · 탐구 과정 성찰일지 통합 검색</p>
+</header>
+
+<div class="container">
+
+  <!-- 검색 패널 -->
+  <div class="search-panel">
+    <h2>학생 검색</h2>
+    <div class="filter-row">
+      <div>
+        <label>반</label>
+        <select id="selBan">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div>
+        <label>모둠</label>
+        <select id="selModum">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div class="name-wrap">
+        <label>이름 (일부 입력 가능)</label>
+        <input type="text" id="inpName" placeholder="예: 김민준" />
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSearch" onclick="searchStudents()">검색</button>
+      <button class="btn btn-secondary" onclick="resetAll()">초기화</button>
+    </div>
+  </div>
+
+  <!-- 학생 목록 -->
+  <div class="student-list-panel" id="studentListPanel">
+    <h2 id="studentListTitle">검색 결과</h2>
+    <div class="student-grid" id="studentGrid"></div>
+  </div>
+
+  <!-- 성찰일지 결과 -->
+  <div class="result-panel" id="resultPanel">
+    <div id="resultContent"></div>
+  </div>
+
+</div>
+
+<script>
+// Apps Script 웹앱 URL — GitHub Pages에서 호출할 때 사용
+// Apps Script 내부에서 서빙될 때는 google.script.run 을 자동으로 사용
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzG5S4_CoswxtkMxs4x3RLb2GaSP47HyoarSRF4159qUkYveGmO3VGf6R86aBTLIp0Yug/exec';
+
+let allStudents = [];
+let selectedStudent = null;
+
+// ── API 호출 통합 레이어 ──────────────────────────────
+// Apps Script 내부: google.script.run 사용
+// 외부(GitHub Pages 등): fetch로 Apps Script URL 호출
+function callApi(action, params) {
+  return new Promise((resolve, reject) => {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      // Apps Script 내부
+      const runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject);
+      if (action === 'getFilterOptions') {
+        runner.getFilterOptions();
+      } else if (action === 'getFilteredStudents') {
+        runner.getFilteredStudents(params.ban, params.modum, params.name);
+      } else if (action === 'getStudentReflections') {
+        runner.getStudentReflections(params.studentName, params.ban, params.modum);
+      } else if (action === 'getStudentLinks') {
+        runner.getStudentLinks(params.studentName, params.ban, params.modum);
+      } else if (action === 'getAudienceStats') {
+        runner.getAudienceStats(params.studentName, params.ban, false);
+      } else if (action === 'getPeerStats') {
+        runner.getPeerStats(params.studentName, params.ban, params.modum);
+      }
+    } else {
+      // 외부 — fetch API
+      const url = new URL(APPS_SCRIPT_URL);
+      url.searchParams.set('action', action);
+      if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+      fetch(url.toString())
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.error) reject(new Error(data.error));
+          else resolve(data);
+        })
+        .catch(reject);
+    }
+  });
+}
+
+// ── 초기화 ────────────────────────────────────────────
+window.onload = function() {
+  callApi('getFilterOptions')
+    .then(function(opts) {
+      const banSel = document.getElementById('selBan');
+      opts.bans.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b + '반';
+        banSel.appendChild(opt);
+      });
+      const modumSel = document.getElementById('selModum');
+      opts.modums.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m + '모둠';
+        modumSel.appendChild(opt);
+      });
+    })
+    .catch(console.error);
+
+  document.getElementById('inpName').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') searchStudents();
+  });
+};
+
+// ── 검색 ─────────────────────────────────────────────
+function searchStudents() {
+  const ban   = document.getElementById('selBan').value;
+  const modum = document.getElementById('selModum').value;
+  const name  = document.getElementById('inpName').value.trim();
+
+  const panel = document.getElementById('studentListPanel');
+  const grid  = document.getElementById('studentGrid');
+
+  grid.innerHTML = '<div class="status-msg"><span class="spinner"></span>검색 중...</div>';
+  panel.style.display = 'block';
+  document.getElementById('resultPanel').style.display = 'none';
+  document.getElementById('btnSearch').disabled = true;
+
+  callApi('getFilteredStudents', { ban, modum, name })
+    .then(function(students) {
+      document.getElementById('btnSearch').disabled = false;
+      allStudents = students;
+      renderStudentList(students);
+    })
+    .catch(function(err) {
+      document.getElementById('btnSearch').disabled = false;
+      grid.innerHTML = '<div class="status-msg">오류: ' + (err.message || err) + '</div>';
+    });
+}
+
+function renderStudentList(students) {
+  const grid  = document.getElementById('studentGrid');
+  const title = document.getElementById('studentListTitle');
+  title.textContent = `검색 결과 (${students.length}명)`;
+
+  if (students.length === 0) {
+    grid.innerHTML = '<div class="no-result">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  const seen = new Map();
+  students.forEach(s => {
+    const key = s.ban + '_' + s.modum + '_' + s.name;
+    if (!seen.has(key)) seen.set(key, s);
+  });
+
+  grid.innerHTML = '';
+  seen.forEach((s, key) => {
+    const chip = document.createElement('div');
+    chip.className = 'student-chip';
+    chip.dataset.key = key;
+
+    const c = s.counts || { booth: 0, inquiry: 0, boothTotal: 6, inquiryTotal: 6 };
+    const boothFull    = c.booth   >= (c.boothTotal   || 6);
+    const inquiryFull  = c.inquiry >= (c.inquiryTotal || 6);
+    const boothTag   = `<span class="count-tag${boothFull   ? '' : ' incomplete'}">부스 ${c.booth}/${c.boothTotal   || 6}</span>`;
+    const inquiryTag = `<span class="count-tag${inquiryFull ? '' : ' incomplete'}">탐구 ${c.inquiry}/${c.inquiryTotal || 6}</span>`;
+    const p = s.peer || { given: 0, received: 0 };
+    const peerTag = `<span class="count-tag peer-tag">해준 ${p.given}·받은 ${p.received}</span>`;
+
+    chip.innerHTML = `
+      <div class="chip-name">${s.name}</div>
+      <div class="chip-meta">${s.ban ? s.ban + '반 ' : ''}${s.modum ? s.modum + '모둠' : ''}</div>
+      <div class="chip-counts">${boothTag}${inquiryTag}${peerTag}</div>`;
+    chip.onclick = () => selectStudent(chip, s);
+    grid.appendChild(chip);
+  });
+}
+
+// ── 학생 선택 ─────────────────────────────────────────
+function selectStudent(chip, student) {
+  document.querySelectorAll('.student-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  selectedStudent = student;
+
+  const resultPanel   = document.getElementById('resultPanel');
+  const resultContent = document.getElementById('resultContent');
+
+  resultPanel.style.display = 'block';
+  resultContent.innerHTML = '<div class="status-msg"><span class="spinner"></span>성찰일지 불러오는 중...</div>';
+  resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  Promise.all([
+    callApi('getStudentReflections', { studentName: student.name, ban: student.ban, modum: student.modum }),
+    callApi('getStudentLinks',       { studentName: student.name, ban: student.ban, modum: student.modum }),
+    callApi('getPeerStats',          { studentName: student.name, ban: student.ban, modum: student.modum }),
+    callApi('getAudienceStats',      { studentName: student.name, ban: student.ban })
+  ])
+    .then(([reflections, linksData, peerStats, audienceStats]) => renderResult(student, reflections, linksData, peerStats, audienceStats))
+    .catch(err => {
+      resultContent.innerHTML = '<div class="status-msg">오류: ' + (err.message || err) + '</div>';
+    });
+}
+
+// ── 링크 + 성찰일지 통합 렌더링 ──────────────────────
+function renderResult(student, reflections, linksData, peerStats, audienceStats) {
+  const resultContent = document.getElementById('resultContent');
+
+  let html = `<div style="font-size:1rem; font-weight:700; color:#1a1a2e; margin-bottom:16px; padding-left:4px;">
+    ${student.name} 학생
+    ${student.ban   ? `<span style="font-size:0.82rem; font-weight:400; color:#888; margin-left:8px;">${student.ban}반</span>`   : ''}
+    ${student.modum ? `<span style="font-size:0.82rem; font-weight:400; color:#888;">${student.modum}모둠</span>` : ''}
+  </div>`;
+
+  // 링크 버튼 카드
+  const links = (linksData && linksData.links) || [];
+  const hasLink = links.some(l => l.url);
+  html += `<div class="link-card">
+    <div class="link-card-title">📎 제출 자료</div>
+    <div class="link-btn-row">`;
+  if (hasLink) {
+    links.forEach(l => {
+      if (l.url) {
+        html += `<a href="${l.url}" target="_blank" rel="noopener" class="link-btn">${l.label}</a>`;
+      } else {
+        html += `<span class="link-btn disabled">${l.label}</span>`;
+      }
+    });
+  } else {
+    html += `<span style="color:#bbb; font-size:0.85rem;">제출된 자료가 없습니다.</span>`;
+  }
+  html += `</div></div>`;
+
+  resultContent.innerHTML = html;
+  renderPeerStats(peerStats);
+  renderAudienceCard(audienceStats, false);
+  renderReflections(student, reflections, true);
+}
+
+// ── 동료평가 렌더링 ───────────────────────────────────
+function renderPeerStats(ps) {
+  const resultContent = document.getElementById('resultContent');
+  if (!ps || ps.error) return;
+
+  const g = ps.given    || { count:0, charSum:0, schoolRank:'-', schoolTotal:'-', classRank:'-', classTotal:'-', items:[] };
+  const r = ps.received || { count:0, charSum:0, schoolRank:'-', schoolTotal:'-', classRank:'-', classTotal:'-', items:[] };
+
+  function statRow(label, val) {
+    return `<div class="peer-stat-row"><span class="peer-stat-label">${label}</span><span class="peer-stat-val">${val}</span></div>`;
+  }
+  function rankBadge(rank, total) {
+    if (rank === null || rank === undefined || rank === '-') return `<span class="rank-badge">-</span>`;
+    return `<span class="rank-badge">${rank}위 / ${total}명</span>`;
+  }
+
+  // 해준/받은 개별 항목 렌더링
+  function itemsHtml(items, mode) {
+    if (!items || items.length === 0) return `<div class="peer-no-item">항목 없음</div>`;
+    return items.map(item => {
+      const who = mode === 'given'
+        ? `→ <strong>${item.targetName}</strong>${item.targetId ? ' (' + item.targetId + ')' : ''}`
+        : `← <strong>${item.writerName}</strong>${item.writerId ? ' (' + item.writerId + ')' : ''}`;
+      const body = item.contents.map(c =>
+        `<div class="peer-item-q">${c.q}</div><div class="peer-item-a">${c.a}</div>`
+      ).join('');
+      return `<div class="peer-item">${who}${body}</div>`;
+    }).join('');
+  }
+
+  const html = `
+  <div class="peer-card">
+    <div class="peer-card-title">🤝 동료평가</div>
+    <div class="peer-cols">
+      <div class="peer-col">
+        <div class="peer-col-header given-header">해준 동료평가</div>
+        ${statRow('횟수', g.count + '건')}
+        ${statRow('글자수 합', g.charSum.toLocaleString() + '자')}
+        ${statRow('학급 순위', rankBadge(g.classRank, g.classTotal))}
+        ${statRow('전교 순위', rankBadge(g.schoolRank, g.schoolTotal))}
+        <div class="peer-items-toggle" onclick="toggleItems(this)">▶ 내용 펼치기</div>
+        <div class="peer-items" style="display:none">${itemsHtml(g.items, 'given')}</div>
+      </div>
+      <div class="peer-col">
+        <div class="peer-col-header received-header">받은 동료평가</div>
+        ${statRow('횟수', r.count + '건')}
+        ${statRow('글자수 합', r.charSum.toLocaleString() + '자')}
+        ${statRow('학급 순위', rankBadge(r.classRank, r.classTotal))}
+        ${statRow('전교 순위', rankBadge(r.schoolRank, r.schoolTotal))}
+        <div class="peer-items-toggle" onclick="toggleItems(this)">▶ 내용 펼치기</div>
+        <div class="peer-items" style="display:none">${itemsHtml(r.items, 'received')}</div>
+      </div>
+    </div>
+  </div>`;
+
+  resultContent.insertAdjacentHTML('beforeend', html);
+}
+
+function toggleItems(btn) {
+  const items = btn.nextElementSibling;
+  const open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  btn.textContent = (open ? '▶' : '▼') + ' 내용 ' + (open ? '펼치기' : '접기');
+}
+
+// ── 청취자 평가 렌더링 ───────────────────────────────
+// anonymous=true 이면 받은 평가 작성자 익명 표시
+function renderAudienceCard(as, anonymous) {
+  const resultContent = document.getElementById('resultContent');
+  if (!as || as.error) return;
+
+  const st = as.stats || {};
+  const given    = as.given    || [];
+  const received = as.received || [];
+
+  function rankBadge(rank, total) {
+    if (!rank || rank === '-') return `<span class="rank-badge">-</span>`;
+    return `<span class="rank-badge">${rank}위 / ${total}명</span>`;
+  }
+
+  // 해준 평가: 발표 세션별 카드
+  let givenHtml = '';
+  if (given.length === 0) {
+    givenHtml = `<div class="aud-no-item">작성한 청취자 평가가 없습니다.</div>`;
+  } else {
+    givenHtml = given.map((item, idx) => `
+      <div class="aud-given-item">
+        <div class="aud-session-label">발표 ${idx + 1}</div>
+        ${item.overallComment ? `
+          <div class="aud-overall-label">📣 전반적 평가 (인상적인 장면)</div>
+          <div class="aud-overall-text">${item.overallComment}</div>` : ''}
+        ${item.individuals.filter(c => c.targetName || c.comment).map(c => `
+          <div class="aud-indiv-row">
+            <span class="aud-target-name">${c.targetName || '?'}</span>
+            <span class="aud-indiv-comment">${c.comment || '(미작성)'}</span>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  // 받은 평가: 개별 댓글 카드
+  let receivedHtml = '';
+  if (received.length === 0) {
+    receivedHtml = `<div class="aud-no-item">받은 청취자 평가가 없습니다.</div>`;
+  } else {
+    receivedHtml = received.map(item => `
+      <div class="aud-recv-item">
+        <div class="aud-recv-writer">${anonymous ? '익명' : item.writerName}</div>
+        <div class="aud-recv-comment">${item.comment}</div>
+      </div>`).join('');
+  }
+
+  const html = `
+  <div class="aud-card">
+    <div class="aud-card-title">👂 청취자 평가</div>
+
+    <div class="aud-stat-row-wrap">
+      <div class="aud-stat-box given-box">
+        <div class="aud-stat-box-label given-label">해준 청취자 평가</div>
+        <div class="aud-stat-row"><span>횟수</span><span>${st.givenCount || 0}건</span></div>
+        <div class="aud-stat-row"><span>글자수 합</span><span>${(st.givenCharSum||0).toLocaleString()}자</span></div>
+        <div class="aud-stat-row"><span>학급 순위</span>${rankBadge(st.givenClassRank, st.givenClassTotal)}</div>
+        <div class="aud-stat-row"><span>전교 순위</span>${rankBadge(st.givenSchoolRank, st.givenSchoolTotal)}</div>
+      </div>
+      <div class="aud-stat-box recv-box">
+        <div class="aud-stat-box-label recv-label">받은 청취자 평가</div>
+        <div class="aud-stat-row"><span>횟수</span><span>${st.receivedCount || 0}건</span></div>
+        <div class="aud-stat-row"><span>글자수 합</span><span>${(st.receivedCharSum||0).toLocaleString()}자</span></div>
+        <div class="aud-stat-row"><span>학급 순위</span>${rankBadge(st.receivedClassRank, st.receivedClassTotal)}</div>
+        <div class="aud-stat-row"><span>전교 순위</span>${rankBadge(st.receivedSchoolRank, st.receivedSchoolTotal)}</div>
+      </div>
+    </div>
+
+    <div class="aud-section">
+      <div class="aud-section-title">✏️ 내가 쓴 청취자 평가</div>
+      <div class="aud-items-toggle" onclick="toggleItems(this)">▶ 내용 펼치기</div>
+      <div class="aud-given-list" style="display:none">${givenHtml}</div>
+    </div>
+
+    <div class="aud-section">
+      <div class="aud-section-title">💬 내가 받은 청취자 평가</div>
+      <div class="aud-items-toggle" onclick="toggleItems(this)">▶ 내용 펼치기</div>
+      <div class="aud-recv-list" style="display:none">${receivedHtml}</div>
+    </div>
+  </div>`;
+
+  resultContent.insertAdjacentHTML('beforeend', html);
+}
+
+// ── 결과 렌더링 ───────────────────────────────────────
+function renderReflections(student, reflections, append) {
+  const resultContent = document.getElementById('resultContent');
+
+  if (!reflections || reflections.length === 0) {
+    resultContent.insertAdjacentHTML('beforeend', `
+      <div class="reflection-card">
+        <div class="no-result">성찰일지 응답이 없습니다.</div>
+      </div>`);
+    return;
+  }
+
+  let html = '';
+
+  reflections.forEach(ref => {
+    const badgeClass = ref.source.includes('탐구') ? 'badge-inquiry' : 'badge-booth';
+    html += `<div class="reflection-card">
+      <div class="card-header">
+        <span class="source-badge ${badgeClass}">${ref.source}</span>
+      </div>`;
+
+    if (ref.responses.length > 1) {
+      html += `<div class="multi-response-notice">※ 응답 ${ref.responses.length}건이 있습니다.</div>`;
+    }
+
+    ref.responses.forEach((resp, ri) => {
+      if (ri > 0) html += '<hr class="response-divider">';
+      if (resp.timestamp) {
+        html += `<div style="font-size:0.75rem; color:#aaa; margin-bottom:12px;">제출: ${resp.timestamp}</div>`;
+      }
+      ref.questions.forEach((q, qi) => {
+        const answer = resp.answers[qi] || '';
+        html += `<div class="qa-item">
+          <div class="question">Q${qi + 1}. ${q}</div>
+          <div class="answer${answer ? '' : ' empty'}">${answer || '(미응답)'}</div>
+        </div>`;
+      });
+    });
+
+    html += `</div>`;
+  });
+
+  resultContent.insertAdjacentHTML('beforeend', html);
+}
+
+function resetAll() {
+  document.getElementById('selBan').value   = '';
+  document.getElementById('selModum').value = '';
+  document.getElementById('inpName').value  = '';
+  document.getElementById('studentListPanel').style.display = 'none';
+  document.getElementById('resultPanel').style.display      = 'none';
+  allStudents     = [];
+  selectedStudent = null;
+}
+</script>
+</body>
+</html>
