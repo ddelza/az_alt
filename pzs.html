@@ -672,10 +672,10 @@
 
   document.getElementById('btnExample').addEventListener('click', function(){
     document.getElementById('btnReset').click();
-    addPoint(0, 0, 'A');
-    addPoint(0, 90, 'B');
-    addPoint(90, 0, 'C');
-    addEdge('A','B'); addEdge('B','C'); addEdge('A','C');
+    addPoint(90, 0, 'P');
+    addPoint(-22.6770742, 14.5244524, 'N');
+    addPoint(37.45903077, 127.3304903, 'T');
+    addEdge('P','N'); addEdge('N','T'); addEdge('P','T');
     recomputeTriangles();
     activeTriangleKey = triangles.length ? triangles[0].key : null;
     renderAll();
