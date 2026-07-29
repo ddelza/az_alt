@@ -32,6 +32,7 @@
     font-size:12px;cursor:pointer;white-space:nowrap;
   }
   button:hover{filter:brightness(1.1);}
+  button:disabled{opacity:.4;cursor:not-allowed;filter:none;}
   button.secondary{background:#33415f;}
   button.danger{background:#5c2b2b;}
   button.small{padding:3px 8px;font-size:11px;}
@@ -86,19 +87,12 @@
     box-shadow:0 4px 14px rgba(0,0,0,.35);
   }
 
-  #pzsModal{
-    display:none;position:fixed;inset:0;z-index:50;
-    background:rgba(6,10,20,.72);align-items:center;justify-content:center;
-  }
-  #pzsModal.open{display:flex;}
-  #pzsModalBox{
-    width:520px;max-width:92vw;max-height:86vh;overflow-y:auto;
-    background:var(--panel2);border:1px solid var(--border);border-radius:12px;
-    padding:20px 22px;position:relative;
-  }
-  #pzsModalBox h2{font-size:16px;margin:0 0 4px;color:var(--accent);}
-  #pzsModalBox .sub{margin:0 0 14px;}
-  #pzsModalClose{position:absolute;top:14px;right:14px;padding:5px 10px;}
+  #pzsSidebar{display:none;}
+  #pzsSidebar h1{font-size:15px;}
+  .pzsStepPanel{display:none;}
+  .pzsStepPanel.active{display:block;}
+  #pzsNav{margin-top:4px;}
+  #pzsNav button{flex:1 1 auto;}
 </style>
 </head>
 <body>
@@ -140,6 +134,7 @@
     </div>
   </div>
   <div id="sidebar">
+  <div id="normalSidebar">
     <h1>구면 삼각법 계산기</h1>
     <p class="sub">위도·경도로 점을 찍고, 두 점을 클릭해 대원의 호로 연결하세요. 삼각형이 닫히면 목록에서 선택해 각을 구합니다.</p>
 
@@ -199,45 +194,129 @@
       <div class="flexend"><button class="secondary small" id="btnCloseAngleExplain">닫기</button></div>
     </section>
   </div>
-</div>
 
-<div id="pzsModal">
-  <div id="pzsModalBox">
-    <button class="secondary" id="pzsModalClose">닫기 ✕</button>
-    <h2>🧭 별 동시측정을 통한 두 지점의 거리 측정하기</h2>
-    <p class="sub">서로 다른 두 지점에서 같은 별을 동시에 측정해 관측자의 위치를 구하고, 그 위치들 사이의 거리를 알아냅니다.</p>
+  <div id="pzsSidebar">
+    <div class="flexend" style="margin-bottom:10px;">
+      <button class="secondary small" id="btnPzsExit">← 돌아가기</button>
+    </div>
+    <h1>🧭 별 동시측정으로 두 지점의 거리 구하기</h1>
+    <p class="sub" id="pzsStepIndicator">Step 1 / 7</p>
 
-    <div class="stepTitle">Step 1 · 각 지점 정의</div>
-    <div class="pzsDef">
-      정확한 위치를 알 수 없는 임의의 세 점 P, Z, S 중 P만 정확히 알려져 있습니다.<br>
-      <b>P</b>: 북점(천구의 북극) — 위도 90°, 유일하게 정확히 아는 점<br>
-      <b>Z</b>: 관측자의 위치 — 위도·경도 알 수 없음<br>
-      <b>S</b>: 별의 위치(적경·적위로 표현됨) — 위도·경도 알 수 없음
-    </div>
-
-    <div class="stepTitle">Step 2 · Z에서 측정한 값 입력</div>
-    <div class="row">
-      <label style="width:auto;flex:1 1 auto;">별 S의 방위각</label>
-      <input type="number" id="pzs-az" step="0.0001" min="0" max="360" value="" placeholder="0 ~ 360" style="max-width:110px;">
-      <label style="width:auto">°</label>
-    </div>
-    <div class="row">
-      <label style="width:auto;flex:1 1 auto;">별 S의 고도</label>
-      <input type="number" id="pzs-altS" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
-      <label style="width:auto">°</label>
-    </div>
-    <div class="row">
-      <label style="width:auto;flex:1 1 auto;">북극성(P)의 고도</label>
-      <input type="number" id="pzs-altP" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
-      <label style="width:auto">°</label>
-    </div>
-    <div class="muted" style="font-size:11px;margin:2px 0 8px;">
-      별 S의 방위각 = ∠PZS · 별의 고도 = 90° − 호SZ · 북극성의 고도 = 90° − 호PZ
+    <div class="pzsStepPanel" data-step="1">
+      <section>
+        <h2>Step 1 · 각 지점 정의</h2>
+        <div class="pzsDef">
+          정확한 위치를 알 수 없는 임의의 세 점 P, Z, S 중 P만 정확히 알려져 있습니다.<br>
+          <b>P</b>: 북점(천구의 북극) — 위도 90°, 유일하게 정확히 아는 점<br>
+          <b>Z</b>: 관측자의 위치 — 위도·경도 알 수 없음<br>
+          <b>S</b>: 별의 위치(적경·적위로 표현됨) — 위도·경도 알 수 없음
+        </div>
+      </section>
     </div>
 
-    <div class="stepTitle">Step 3 · 별의 적위 계산</div>
-    <div class="calcBox" id="pzsResult">
-      <div class="step muted">방위각, 별의 고도, 북극성의 고도를 모두 입력하면 자동으로 계산됩니다.</div>
+    <div class="pzsStepPanel" data-step="2">
+      <section>
+        <h2>Step 2 · Z에서 측정한 값 입력</h2>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">별 S의 방위각</label>
+          <input type="number" id="pzs-az" step="0.0001" min="0" max="360" value="" placeholder="0 ~ 360" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">별 S의 고도</label>
+          <input type="number" id="pzs-altS" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">북극성(P)의 고도</label>
+          <input type="number" id="pzs-altP" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="muted" style="font-size:11px;margin:2px 0 0;">
+          별 S의 방위각 = ∠PZS · 별의 고도 = 90° − 호SZ · 북극성의 고도 = 90° − 호PZ
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="3">
+      <section>
+        <h2>Step 3 · 별의 적위 계산</h2>
+        <div class="calcBox" id="pzsResult">
+          <div class="step muted">Step 2에서 값을 입력하면 자동으로 계산됩니다.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="4">
+      <section>
+        <h2>Step 4 · 별(S)과 관측자(Z) 사이의 경도차 구하기</h2>
+        <div class="muted" style="font-size:11px;margin:0 0 8px;">PZS 삼각형의 세 변(호PZ, 호SZ, 호PS)을 모두 알고 있으므로, 구면 코사인 법칙으로 꼭짓점 P의 각 ∠ZPS를 구합니다. 이 각이 곧 S와 Z 사이의 경도차입니다.</div>
+        <div class="calcBox" id="pzsResultZ4">
+          <div class="step muted">Step 2·3을 먼저 완료하세요.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="5">
+      <section>
+        <h2>Step 5 · 관측자 Y에 대해 Step 2~4 반복</h2>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">Y에서 측정한 S의 방위각</label>
+          <input type="number" id="pzs-az-y" step="0.0001" min="0" max="360" value="" placeholder="0 ~ 360" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">Y에서 측정한 S의 고도</label>
+          <input type="number" id="pzs-altS-y" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">Y에서 측정한 북극성(P)의 고도</label>
+          <input type="number" id="pzs-altP-y" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="calcBox" id="pzsResultY">
+          <div class="step muted">위 세 값을 입력하면 자동으로 계산됩니다.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="6">
+      <section>
+        <h2>Step 6 · Y-Z 사이의 경도차와 호의 길이 구하기</h2>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">별의 경도가 두 관측자 사이에 있나요?</label>
+        </div>
+        <div class="row">
+          <select id="pzs-lonRelation" style="flex:1 1 auto;background:#0f1626;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;">
+            <option value="between">예 — 두 경도차를 더합니다</option>
+            <option value="outside">아니오 — 큰 값에서 작은 값을 뺍니다</option>
+          </select>
+        </div>
+        <div class="muted" style="font-size:11px;margin:2px 0 8px;">두 관측자의 위도 = 각자 측정한 북극성의 고도. 이 위도들과 경도차로 구면 코사인 법칙을 적용해 호 YZ를 구합니다.</div>
+        <div class="calcBox" id="pzsResultYZ">
+          <div class="step muted">Step 4·5를 먼저 완료하세요.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="7">
+      <section>
+        <h2>Step 7 · 지구 반지름으로 실제 거리 구하기</h2>
+        <div class="row">
+          <label style="width:auto;flex:1 1 auto;">지구 반지름</label>
+          <input type="number" id="pzs-earthRadius" step="1" min="1" value="6371" style="max-width:110px;">
+          <label style="width:auto">km</label>
+        </div>
+        <div class="calcBox" id="pzsResultDistance">
+          <div class="step muted">Step 6을 먼저 완료하세요.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="flexend" id="pzsNav">
+      <button class="secondary" id="btnPzsPrev">← 이전</button>
+      <button id="btnPzsNext">다음 →</button>
     </div>
   </div>
 </div>
@@ -263,8 +342,8 @@
   var scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0f172a);
 
-  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.set(3.6, 2.4, 4.2);
+  var camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
+  camera.position.set(4.8, 3.2, 5.6);
 
   var renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -274,7 +353,7 @@
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 2.8;
-  controls.maxDistance = 12;
+  controls.maxDistance = 14;
 
   scene.add(new THREE.AmbientLight(0xffffff, 1.0));
 
@@ -289,7 +368,7 @@
   // base globe (translucent) + graticule
   var globe = new THREE.Mesh(
     new THREE.SphereGeometry(R, 48, 32),
-    new THREE.MeshBasicMaterial({color:0x1b2a4a, transparent:true, opacity:0.35})
+    new THREE.MeshBasicMaterial({color:0x1b2a4a, transparent:true, opacity:0.35, depthWrite:false})
   );
   scene.add(globe);
 
@@ -347,6 +426,13 @@
   var centerVizGroup = new THREE.Group();
   scene.add(centerVizGroup);
 
+  var userGeomGroup = new THREE.Group();
+  scene.add(userGeomGroup);
+
+  var pzsVizGroup = new THREE.Group();
+  pzsVizGroup.visible = false;
+  scene.add(pzsVizGroup);
+
   function animate(){
     requestAnimationFrame(animate);
     controls.update();
@@ -392,11 +478,11 @@
       new THREE.MeshBasicMaterial({color:0x4c8dff})
     );
     mesh.position.copy(vec).multiplyScalar(R);
-    scene.add(mesh);
+    userGeomGroup.add(mesh);
 
     var label = makeLabelSprite(name);
     label.position.copy(vec).multiplyScalar(R + 0.22);
-    scene.add(label);
+    userGeomGroup.add(label);
 
     var p = {name:name, lat:lat, lon:lon, vec:vec, mesh:mesh, label:label};
     points.push(p);
@@ -407,10 +493,10 @@
   function removePoint(name){
     var p = findPoint(name);
     if (!p) return;
-    scene.remove(p.mesh); scene.remove(p.label);
+    userGeomGroup.remove(p.mesh); userGeomGroup.remove(p.label);
     points = points.filter(function(x){return x.name!==name;});
     edges = edges.filter(function(e){
-      if (e.a===name || e.b===name){ scene.remove(e.line); return false; }
+      if (e.a===name || e.b===name){ userGeomGroup.remove(e.line); return false; }
       return true;
     });
     pendingSelection = pendingSelection.filter(function(n){return n!==name;});
@@ -451,14 +537,14 @@
     var geo = new THREE.BufferGeometry().setFromPoints(arcPts);
     var mat = new THREE.LineBasicMaterial({color:0x4c8dff, linewidth:2});
     var line = new THREE.Line(geo, mat);
-    scene.add(line);
+    userGeomGroup.add(line);
     edges.push({a:nameA, b:nameB, line:line});
     recomputeTriangles();
   }
 
   function removeEdge(nameA, nameB){
     edges = edges.filter(function(e){
-      if ((e.a===nameA&&e.b===nameB)||(e.a===nameB&&e.b===nameA)){ scene.remove(e.line); return false; }
+      if ((e.a===nameA&&e.b===nameB)||(e.a===nameB&&e.b===nameA)){ userGeomGroup.remove(e.line); return false; }
       return true;
     });
     recomputeTriangles();
@@ -799,8 +885,8 @@
   });
 
   document.getElementById('btnReset').addEventListener('click', function(){
-    points.forEach(function(p){ scene.remove(p.mesh); scene.remove(p.label); });
-    edges.forEach(function(e){ scene.remove(e.line); });
+    points.forEach(function(p){ userGeomGroup.remove(p.mesh); userGeomGroup.remove(p.label); });
+    edges.forEach(function(e){ userGeomGroup.remove(e.line); });
     points = []; edges = []; triangles = []; pendingSelection = []; activeTriangleKey = null;
     showErr('');
     renderAll();
@@ -866,52 +952,239 @@
   updateDmsToDecimal();
   updateDecimalToDms();
 
-  // ---------- PZS navigational triangle guide (Step 1-3) ----------
+  // ---------- PZS navigational triangle guide (Step 1-7) ----------
+  function stationCalc(stationLetter, az, altS, altP){
+    if (isNaN(az) || isNaN(altS) || isNaN(altP)) return null;
+    var arcPX = 'P'+stationLetter, arcSX = 'S'+stationLetter;
+    var PX = 90 - altP; // arc P-station (co-altitude of Polaris)
+    var SX = 90 - altS; // arc S-station (co-altitude of star)
+    var angX = az;       // angle at station = star's azimuth
+
+    var PXr = toRad(PX), SXr = toRad(SX), angXr = toRad(angX);
+    var cosPS = clamp(Math.cos(PXr)*Math.cos(SXr) + Math.sin(PXr)*Math.sin(SXr)*Math.cos(angXr));
+    var PS = toDeg(Math.acos(cosPS));
+    var dec = 90 - PS;
+    var PSr = toRad(PS);
+
+    var denom = Math.sin(PXr)*Math.sin(PSr);
+    var angP = null, cosAngP = null;
+    if (Math.abs(denom) >= 1e-9){
+      cosAngP = clamp((Math.cos(SXr) - Math.cos(PXr)*Math.cos(PSr)) / denom);
+      angP = toDeg(Math.acos(cosAngP));
+    }
+
+    var htmlDec = ''
+      + '<div class="step">호 '+arcPX+' = 90° − 북극성의 고도 = 90° − '+altP.toFixed(4)+'° = <span class="result">'+PX.toFixed(4)+'°</span></div>'
+      + '<div class="step">호 '+arcSX+' = 90° − 별의 고도 = 90° − '+altS.toFixed(4)+'° = <span class="result">'+SX.toFixed(4)+'°</span></div>'
+      + '<div class="step">∠P'+stationLetter+'S = 별의 방위각 = <span class="result">'+angX.toFixed(4)+'°</span></div>'
+      + '<div class="step"><span class="formula">구면 코사인 법칙(SAS): cos(PS) = cos('+arcPX+')·cos('+arcSX+') + sin('+arcPX+')·sin('+arcSX+')·cos(∠P'+stationLetter+'S)<br>'
+      +   '= cos('+PX.toFixed(2)+'°)×cos('+SX.toFixed(2)+'°) + sin('+PX.toFixed(2)+'°)×sin('+SX.toFixed(2)+'°)×cos('+angX.toFixed(2)+'°) = '+fmt(cosPS)+'</span></div>'
+      + '<div class="step"><span class="formula">호 PS = arccos('+fmt(cosPS)+') = <span class="result">'+PS.toFixed(4)+'°</span></span></div>'
+      + '<div class="step">별의 적위('+stationLetter+' 기준) = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="result">'+dec.toFixed(4)+'°</span></div>';
+
+    var htmlLon;
+    if (angP === null){
+      htmlLon = '<div class="step" style="color:var(--bad)">삼각형이 퇴화되어 경도차를 구할 수 없습니다.</div>';
+    } else {
+      htmlLon = ''
+        + '<div class="step"><span class="formula">구면 코사인 법칙(SSS→각): cos(∠'+stationLetter+'PS) = (cos('+arcSX+') − cos('+arcPX+')·cos(PS)) / (sin('+arcPX+')·sin(PS))<br>'
+        +   '= ('+fmt(Math.cos(SXr))+' − '+fmt(Math.cos(PXr)*Math.cos(PSr))+') / '+fmt(denom)+' = '+fmt(cosAngP)+'</span></div>'
+        + '<div class="step">∠'+stationLetter+'PS = arccos('+fmt(cosAngP)+') = <span class="result">'+angP.toFixed(4)+'°</span><br>'
+        +   '→ '+stationLetter+'와 S 사이의 경도차 = <span class="result">'+angP.toFixed(4)+'°</span></div>';
+    }
+
+    return {PX:PX, SX:SX, angX:angX, PS:PS, dec:dec, angP:angP, lat:altP, htmlDec:htmlDec, htmlLon:htmlLon};
+  }
+
   function updatePzsGuide(){
-    var out = document.getElementById('pzsResult');
     var az = parseFloat(document.getElementById('pzs-az').value);
     var altS = parseFloat(document.getElementById('pzs-altS').value);
     var altP = parseFloat(document.getElementById('pzs-altP').value);
+    var resZ = stationCalc('Z', az, altS, altP);
 
-    if (isNaN(az) || isNaN(altS) || isNaN(altP)){
-      out.innerHTML = '<div class="step muted">방위각, 별의 고도, 북극성의 고도를 모두 입력하면 자동으로 계산됩니다.</div>';
-      return;
+    var outZ3 = document.getElementById('pzsResult');
+    var outZ4 = document.getElementById('pzsResultZ4');
+    if (!resZ){
+      outZ3.innerHTML = '<div class="step muted">방위각, 별의 고도, 북극성의 고도를 모두 입력하면 자동으로 계산됩니다.</div>';
+      outZ4.innerHTML = '<div class="step muted">Step 2·3을 먼저 완료하세요.</div>';
+    } else {
+      outZ3.innerHTML = resZ.htmlDec;
+      outZ4.innerHTML = resZ.htmlLon;
     }
 
-    var PZ = 90 - altP; // arc PZ (co-altitude of Polaris)
-    var SZ = 90 - altS; // arc SZ (co-altitude of star)
-    var angZ = az;      // angle PZS = star's azimuth
+    var azY = parseFloat(document.getElementById('pzs-az-y').value);
+    var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
+    var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
+    var resY = stationCalc('Y', azY, altSY, altPY);
+    var outY = document.getElementById('pzsResultY');
+    if (!resY){
+      outY.innerHTML = '<div class="step muted">위 세 값을 입력하면 자동으로 계산됩니다.</div>';
+    } else {
+      outY.innerHTML = resY.htmlDec + resY.htmlLon;
+    }
 
-    var PZr = toRad(PZ), SZr = toRad(SZ), angZr = toRad(angZ);
-    var cosPS = clamp(Math.cos(PZr)*Math.cos(SZr) + Math.sin(PZr)*Math.sin(SZr)*Math.cos(angZr));
-    var PS = toDeg(Math.acos(cosPS));
-    var dec = 90 - PS;
+    var outYZ = document.getElementById('pzsResultYZ');
+    var arcYZ = null;
+    if (resZ && resY && resZ.angP !== null && resY.angP !== null){
+      var relation = document.getElementById('pzs-lonRelation').value;
+      var lonYZ = relation === 'between' ? (resZ.angP + resY.angP) : Math.abs(resZ.angP - resY.angP);
+      var latZ = resZ.lat, latY = resY.lat; // observer latitude = altitude of Polaris
+      var latZr = toRad(latZ), latYr = toRad(latY), lonYZr = toRad(lonYZ);
+      var cosYZ = clamp(Math.sin(latYr)*Math.sin(latZr) + Math.cos(latYr)*Math.cos(latZr)*Math.cos(lonYZr));
+      arcYZ = toDeg(Math.acos(cosYZ));
 
-    var html = '';
-    html += '<div class="step">호 PZ (P-Z 사이 중심각) = 90° − 북극성의 고도 = 90° − '+altP.toFixed(4)+'° = <span class="result">'+PZ.toFixed(4)+'°</span></div>';
-    html += '<div class="step">호 SZ (S-Z 사이 중심각) = 90° − 별의 고도 = 90° − '+altS.toFixed(4)+'° = <span class="result">'+SZ.toFixed(4)+'°</span></div>';
-    html += '<div class="step">∠PZS (Z에서 본 P·S 사이 각) = 별의 방위각 = <span class="result">'+angZ.toFixed(4)+'°</span></div>';
-    html += '<div class="step"><span class="formula">구면 코사인 법칙(SAS): cos(PS) = cos(PZ)·cos(SZ) + sin(PZ)·sin(SZ)·cos(∠PZS)<br>'+
-            '= cos('+PZ.toFixed(2)+'°)×cos('+SZ.toFixed(2)+'°) + sin('+PZ.toFixed(2)+'°)×sin('+SZ.toFixed(2)+'°)×cos('+angZ.toFixed(2)+'°)<br>'+
-            '= ('+fmt(Math.cos(PZr))+'×'+fmt(Math.cos(SZr))+') + ('+fmt(Math.sin(PZr))+'×'+fmt(Math.sin(SZr))+'×'+fmt(Math.cos(angZr))+')<br>'+
-            '= '+fmt(cosPS)+'</span></div>';
-    html += '<div class="step"><span class="formula">호 PS = arccos('+fmt(cosPS)+') = <span class="result">'+PS.toFixed(4)+'°</span></span></div>';
-    html += '<div class="step">P는 천구의 북극(적위 90°)이므로, 별의 적위 = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="result">'+dec.toFixed(4)+'°</span></div>';
+      var relLabel = relation === 'between'
+        ? ('Z-S 경도차 + Y-S 경도차 = '+resZ.angP.toFixed(4)+'° + '+resY.angP.toFixed(4)+'°')
+        : ('|Z-S 경도차 − Y-S 경도차| = |'+resZ.angP.toFixed(4)+'° − '+resY.angP.toFixed(4)+'°|');
 
-    out.innerHTML = html;
+      var html = '';
+      html += '<div class="step">두 관측자의 위도: 위도(Z) = 북극성 고도(Z) = <span class="result">'+latZ.toFixed(4)+'°</span>, 위도(Y) = 북극성 고도(Y) = <span class="result">'+latY.toFixed(4)+'°</span></div>';
+      html += '<div class="step">Y-Z 경도차 = '+relLabel+' = <span class="result">'+lonYZ.toFixed(4)+'°</span></div>';
+      html += '<div class="step"><span class="formula">cos(YZ) = sin(위도Y)·sin(위도Z) + cos(위도Y)·cos(위도Z)·cos(경도차)<br>'
+        + '= ('+fmt(Math.sin(latYr))+'×'+fmt(Math.sin(latZr))+') + ('+fmt(Math.cos(latYr))+'×'+fmt(Math.cos(latZr))+'×'+fmt(Math.cos(lonYZr))+') = '+fmt(cosYZ)+'</span></div>';
+      html += '<div class="step"><span class="formula">호 YZ = arccos('+fmt(cosYZ)+') = <span class="result">'+arcYZ.toFixed(4)+'°</span></span></div>';
+      outYZ.innerHTML = html;
+    } else {
+      outYZ.innerHTML = '<div class="step muted">Step 4·5를 먼저 완료하세요.</div>';
+    }
+
+    var outDist = document.getElementById('pzsResultDistance');
+    if (arcYZ !== null){
+      var radius = parseFloat(document.getElementById('pzs-earthRadius').value);
+      if (isNaN(radius) || radius <= 0){
+        outDist.innerHTML = '<div class="step muted">지구 반지름을 입력하세요.</div>';
+      } else {
+        var thetaRad = toRad(arcYZ);
+        var distance = radius * thetaRad;
+        outDist.innerHTML = '<div class="step"><span class="formula">l = rθ = '+radius.toFixed(1)+' km × '+thetaRad.toFixed(6)+' rad<br>'
+          + '(θ = 호 YZ = '+arcYZ.toFixed(4)+'° = '+thetaRad.toFixed(6)+' rad)</span><br>'
+          + '두 지점 Y-Z 사이의 거리 ≈ <span class="result">'+distance.toFixed(2)+' km</span></div>';
+      }
+    } else {
+      outDist.innerHTML = '<div class="step muted">Step 6을 먼저 완료하세요.</div>';
+    }
   }
-  ['pzs-az','pzs-altS','pzs-altP'].forEach(function(id){
-    document.getElementById(id).addEventListener('input', updatePzsGuide);
+  function updatePzsAll(){ updatePzsGuide(); renderPzsViz(); }
+  ['pzs-az','pzs-altS','pzs-altP','pzs-az-y','pzs-altS-y','pzs-altP-y','pzs-earthRadius'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', updatePzsAll);
   });
+  document.getElementById('pzs-lonRelation').addEventListener('change', updatePzsAll);
 
-  document.getElementById('btnPzsMode').addEventListener('click', function(){
-    document.getElementById('pzsModal').classList.add('open');
-  });
-  document.getElementById('pzsModalClose').addEventListener('click', function(){
-    document.getElementById('pzsModal').classList.remove('open');
-  });
-  document.getElementById('pzsModal').addEventListener('click', function(e){
-    if (e.target.id === 'pzsModal') document.getElementById('pzsModal').classList.remove('open');
+  // ---------- PZS 3D visualization ----------
+  function addPzsMarker(vec, name, color){
+    var mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 20, 16),
+      new THREE.MeshBasicMaterial({color: color})
+    );
+    mesh.position.copy(vec).multiplyScalar(R);
+    pzsVizGroup.add(mesh);
+    var label = makeTextSprite(name, {fontSize:84, width:120, height:120, color:'#ffe9b3'});
+    label.position.copy(vec).multiplyScalar(R + 0.22);
+    pzsVizGroup.add(label);
+  }
+  function addPzsArc(v0, v1, color){
+    var pts = slerpArcPoints(v0, v1, 48).map(function(v){ return v.clone().multiplyScalar(R); });
+    var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    pzsVizGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({color:color, transparent:true, opacity:0.9})));
+  }
+
+  function renderPzsViz(){
+    while (pzsVizGroup.children.length){ pzsVizGroup.remove(pzsVizGroup.children[0]); }
+    if (!pzsMode) return;
+
+    var vecP = latLonToUnit(90, 0);
+    addPzsMarker(vecP, 'P', 0xffd27a);
+    if (pzsStep < 2) return;
+
+    var az = parseFloat(document.getElementById('pzs-az').value);
+    var altS = parseFloat(document.getElementById('pzs-altS').value);
+    var altP = parseFloat(document.getElementById('pzs-altP').value);
+    var resZ = stationCalc('Z', az, altS, altP);
+
+    // S is arbitrarily fixed on the prime meridian (its longitude is never knowable);
+    // its latitude becomes known only once the declination is solved in Step 3.
+    var decForS = (resZ && pzsStep >= 3) ? resZ.dec : 0;
+    var vecS = latLonToUnit(decForS, 0);
+    addPzsMarker(vecS, 'S', 0xff6bd6);
+
+    if (resZ){
+      // arc P-Z depends only on colatitude, so it is already correct even
+      // while Z's longitude is still a placeholder
+      var lonZ = (pzsStep >= 4 && resZ.angP !== null) ? resZ.angP : 0;
+      var vecZ = latLonToUnit(altP, lonZ);
+      addPzsMarker(vecZ, 'Z', 0x4c8dff);
+      addPzsArc(vecP, vecZ, 0x6f7fa8);
+      addPzsArc(vecP, vecS, 0x6f7fa8);
+      if (pzsStep >= 4 && resZ.angP !== null){
+        addPzsArc(vecZ, vecS, 0x3ecf8e);
+      }
+    } else if (pzsStep >= 3){
+      addPzsArc(vecP, vecS, 0x6f7fa8);
+    }
+
+    if (pzsStep >= 5){
+      var azY = parseFloat(document.getElementById('pzs-az-y').value);
+      var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
+      var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
+      var resY = stationCalc('Y', azY, altSY, altPY);
+      if (resY && resY.angP !== null){
+        var relation = document.getElementById('pzs-lonRelation').value;
+        var lonY = relation === 'between' ? -resY.angP : resY.angP;
+        var vecY = latLonToUnit(altPY, lonY);
+        addPzsMarker(vecY, 'Y', 0xffa64c);
+        addPzsArc(vecP, vecY, 0x6f7fa8);
+
+        if (pzsStep >= 6 && resZ && resZ.angP !== null){
+          var vecZFinal = latLonToUnit(altP, resZ.angP);
+          addPzsArc(vecY, vecZFinal, 0xffd27a);
+        }
+      }
+    }
+  }
+
+  // ---------- PZS mode: sidebar swap + step navigation ----------
+  var pzsMode = false;
+  var pzsStep = 1;
+  var PZS_STEP_COUNT = 7;
+
+  function showPzsStep(n){
+    pzsStep = Math.max(1, Math.min(PZS_STEP_COUNT, n));
+    document.querySelectorAll('.pzsStepPanel').forEach(function(panel){
+      panel.classList.toggle('active', parseInt(panel.getAttribute('data-step'),10) === pzsStep);
+    });
+    document.getElementById('pzsStepIndicator').textContent = 'Step '+pzsStep+' / '+PZS_STEP_COUNT;
+    document.getElementById('btnPzsPrev').disabled = (pzsStep === 1);
+    document.getElementById('btnPzsNext').textContent = (pzsStep === PZS_STEP_COUNT) ? '완료' : '다음 →';
+    updatePzsAll();
+  }
+
+  function enterPzsMode(){
+    pzsMode = true;
+    document.getElementById('normalSidebar').style.display = 'none';
+    document.getElementById('pzsSidebar').style.display = 'block';
+    userGeomGroup.visible = false;
+    centerVizGroup.visible = false;
+    pzsVizGroup.visible = true;
+    camera.position.set(4.8, 3.2, 5.6);
+    controls.target.set(0,0,0);
+    controls.update();
+    showPzsStep(1);
+  }
+  function exitPzsMode(){
+    pzsMode = false;
+    document.getElementById('normalSidebar').style.display = 'block';
+    document.getElementById('pzsSidebar').style.display = 'none';
+    userGeomGroup.visible = true;
+    centerVizGroup.visible = true;
+    pzsVizGroup.visible = false;
+  }
+
+  document.getElementById('btnPzsMode').addEventListener('click', enterPzsMode);
+  document.getElementById('btnPzsExit').addEventListener('click', exitPzsMode);
+  document.getElementById('btnPzsPrev').addEventListener('click', function(){ showPzsStep(pzsStep-1); });
+  document.getElementById('btnPzsNext').addEventListener('click', function(){
+    if (pzsStep === PZS_STEP_COUNT){ exitPzsMode(); return; }
+    showPzsStep(pzsStep+1);
   });
 
   // ---------- boot ----------
