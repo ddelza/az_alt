@@ -79,12 +79,34 @@
   }
   #convPanel .convResult .val{font-weight:700;color:var(--accent2);font-variant-numeric:tabular-nums;flex:1 1 auto;}
   #convPanel .convResult button{padding:3px 7px;font-size:10px;}
+
+  #btnPzsMode{
+    position:absolute;left:12px;bottom:112px;z-index:5;max-width:230px;
+    text-align:left;white-space:normal;line-height:1.4;padding:9px 12px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+  }
+
+  #pzsModal{
+    display:none;position:fixed;inset:0;z-index:50;
+    background:rgba(6,10,20,.72);align-items:center;justify-content:center;
+  }
+  #pzsModal.open{display:flex;}
+  #pzsModalBox{
+    width:520px;max-width:92vw;max-height:86vh;overflow-y:auto;
+    background:var(--panel2);border:1px solid var(--border);border-radius:12px;
+    padding:20px 22px;position:relative;
+  }
+  #pzsModalBox h2{font-size:16px;margin:0 0 4px;color:var(--accent);}
+  #pzsModalBox .sub{margin:0 0 14px;}
+  #pzsModalClose{position:absolute;top:14px;right:14px;padding:5px 10px;}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="viewport">
     <div id="hint">마우스 드래그: 회전 · 휠: 확대/축소<br>구 위의 점을 두 번 클릭하면 대원 호(arc)로 연결됩니다.<br>삼각형 선택 시 중앙의 노란 각도 라벨(예: AOB)을 클릭하면 계산법이 나옵니다.</div>
+
+    <button class="secondary" id="btnPzsMode">🧭 별 동시측정을 통한 두 지점의 거리 측정하기 문제 풀이</button>
 
     <div id="convPanel">
       <h2>🔄 위도·경도 단위 변환</h2>
@@ -120,42 +142,6 @@
   <div id="sidebar">
     <h1>구면 삼각법 계산기</h1>
     <p class="sub">위도·경도로 점을 찍고, 두 점을 클릭해 대원의 호로 연결하세요. 삼각형이 닫히면 목록에서 선택해 각을 구합니다.</p>
-
-    <section>
-      <h2>🧭 항해삼각형(PZS)으로 별의 적위 구하기</h2>
-      <div class="stepTitle">Step 1 · 각 지점 정의</div>
-      <div class="pzsDef">
-        정확한 위치를 알 수 없는 임의의 세 점 P, Z, S 중 P만 정확히 알려져 있습니다.<br>
-        <b>P</b>: 북점(천구의 북극) — 위도 90°, 유일하게 정확히 아는 점<br>
-        <b>Z</b>: 관측자의 위치 — 위도·경도 알 수 없음<br>
-        <b>S</b>: 별의 위치(적경·적위로 표현됨) — 위도·경도 알 수 없음
-      </div>
-
-      <div class="stepTitle">Step 2 · Z에서 측정한 값 입력</div>
-      <div class="row">
-        <label style="width:auto;flex:1 1 auto;">별 S의 방위각</label>
-        <input type="number" id="pzs-az" step="0.0001" min="0" max="360" value="" placeholder="0 ~ 360" style="max-width:110px;">
-        <label style="width:auto">°</label>
-      </div>
-      <div class="row">
-        <label style="width:auto;flex:1 1 auto;">별 S의 고도</label>
-        <input type="number" id="pzs-altS" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
-        <label style="width:auto">°</label>
-      </div>
-      <div class="row">
-        <label style="width:auto;flex:1 1 auto;">북극성(P)의 고도</label>
-        <input type="number" id="pzs-altP" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
-        <label style="width:auto">°</label>
-      </div>
-      <div class="muted" style="font-size:11px;margin:2px 0 8px;">
-        별 S의 방위각 = ∠PZS · 별의 고도 = 90° − 호SZ · 북극성의 고도 = 90° − 호PZ
-      </div>
-
-      <div class="stepTitle">Step 3 · 별의 적위 계산</div>
-      <div class="calcBox" id="pzsResult">
-        <div class="step muted">방위각, 별의 고도, 북극성의 고도를 모두 입력하면 자동으로 계산됩니다.</div>
-      </div>
-    </section>
 
     <section>
       <h2>① 점 추가</h2>
@@ -212,6 +198,47 @@
       <div id="angleExplain"></div>
       <div class="flexend"><button class="secondary small" id="btnCloseAngleExplain">닫기</button></div>
     </section>
+  </div>
+</div>
+
+<div id="pzsModal">
+  <div id="pzsModalBox">
+    <button class="secondary" id="pzsModalClose">닫기 ✕</button>
+    <h2>🧭 별 동시측정을 통한 두 지점의 거리 측정하기</h2>
+    <p class="sub">서로 다른 두 지점에서 같은 별을 동시에 측정해 관측자의 위치를 구하고, 그 위치들 사이의 거리를 알아냅니다.</p>
+
+    <div class="stepTitle">Step 1 · 각 지점 정의</div>
+    <div class="pzsDef">
+      정확한 위치를 알 수 없는 임의의 세 점 P, Z, S 중 P만 정확히 알려져 있습니다.<br>
+      <b>P</b>: 북점(천구의 북극) — 위도 90°, 유일하게 정확히 아는 점<br>
+      <b>Z</b>: 관측자의 위치 — 위도·경도 알 수 없음<br>
+      <b>S</b>: 별의 위치(적경·적위로 표현됨) — 위도·경도 알 수 없음
+    </div>
+
+    <div class="stepTitle">Step 2 · Z에서 측정한 값 입력</div>
+    <div class="row">
+      <label style="width:auto;flex:1 1 auto;">별 S의 방위각</label>
+      <input type="number" id="pzs-az" step="0.0001" min="0" max="360" value="" placeholder="0 ~ 360" style="max-width:110px;">
+      <label style="width:auto">°</label>
+    </div>
+    <div class="row">
+      <label style="width:auto;flex:1 1 auto;">별 S의 고도</label>
+      <input type="number" id="pzs-altS" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+      <label style="width:auto">°</label>
+    </div>
+    <div class="row">
+      <label style="width:auto;flex:1 1 auto;">북극성(P)의 고도</label>
+      <input type="number" id="pzs-altP" step="0.0001" min="-90" max="90" value="" placeholder="0 ~ 90" style="max-width:110px;">
+      <label style="width:auto">°</label>
+    </div>
+    <div class="muted" style="font-size:11px;margin:2px 0 8px;">
+      별 S의 방위각 = ∠PZS · 별의 고도 = 90° − 호SZ · 북극성의 고도 = 90° − 호PZ
+    </div>
+
+    <div class="stepTitle">Step 3 · 별의 적위 계산</div>
+    <div class="calcBox" id="pzsResult">
+      <div class="step muted">방위각, 별의 고도, 북극성의 고도를 모두 입력하면 자동으로 계산됩니다.</div>
+    </div>
   </div>
 </div>
 
@@ -875,6 +902,16 @@
   }
   ['pzs-az','pzs-altS','pzs-altP'].forEach(function(id){
     document.getElementById(id).addEventListener('input', updatePzsGuide);
+  });
+
+  document.getElementById('btnPzsMode').addEventListener('click', function(){
+    document.getElementById('pzsModal').classList.add('open');
+  });
+  document.getElementById('pzsModalClose').addEventListener('click', function(){
+    document.getElementById('pzsModal').classList.remove('open');
+  });
+  document.getElementById('pzsModal').addEventListener('click', function(e){
+    if (e.target.id === 'pzsModal') document.getElementById('pzsModal').classList.remove('open');
   });
 
   // ---------- boot ----------
