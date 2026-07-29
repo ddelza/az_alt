@@ -58,7 +58,7 @@
 <body>
 <div id="app">
   <div id="viewport">
-    <div id="hint">마우스 드래그: 회전 · 휠: 확대/축소<br>구 위의 점을 두 번 클릭하면 대원 호(arc)로 연결됩니다.</div>
+    <div id="hint">마우스 드래그: 회전 · 휠: 확대/축소<br>구 위의 점을 두 번 클릭하면 대원 호(arc)로 연결됩니다.<br>삼각형 선택 시 중앙의 노란 각도 라벨(예: AOB)을 클릭하면 계산법이 나옵니다.</div>
   </div>
   <div id="sidebar">
     <h1>구면 삼각법 계산기</h1>
@@ -113,6 +113,12 @@
       <h2>⑤ 계산 과정</h2>
       <div id="calc"></div>
     </section>
+
+    <section id="angleExplainSection" style="display:none;">
+      <h2>⑥ 클릭한 중심각 설명</h2>
+      <div id="angleExplain"></div>
+      <div class="flexend"><button class="secondary small" id="btnCloseAngleExplain">닫기</button></div>
+    </section>
   </div>
 </div>
 
@@ -130,6 +136,7 @@
   var triangles = []; // {key, names:[a,b,c]}
   var pendingSelection = []; // point names picked toward forming an edge
   var activeTriangleKey = null;
+  var centerVizPicks = []; // {sprite, names:[nameX,nameY]} clickable central-angle labels
 
   // ---------- three.js setup ----------
   var viewport = document.getElementById('viewport');
@@ -167,7 +174,9 @@
   scene.add(globe);
 
   function latLonToUnit(latDeg, lonDeg){
-    var lat = latDeg * Math.PI/180, lon = lonDeg * Math.PI/180;
+    // longitude negated so that east(+)/west(-) matches standard geographic
+    // convention (east = counterclockwise when viewed from above the north pole)
+    var lat = latDeg * Math.PI/180, lon = -lonDeg * Math.PI/180;
     var x = Math.cos(lat) * Math.cos(lon);
     var z = Math.cos(lat) * Math.sin(lon);
     var y = Math.sin(lat);
@@ -177,7 +186,8 @@
   function buildGraticule(){
     var group = new THREE.Group();
     var mat = new THREE.LineBasicMaterial({color:0x3e5486, transparent:true, opacity:0.5});
-    var boldMat = new THREE.LineBasicMaterial({color:0x6f8ecf, transparent:true, opacity:0.85});
+    var equatorMat = new THREE.LineBasicMaterial({color:0x6f8ecf, transparent:true, opacity:0.85});
+    var primeMeridianMat = new THREE.LineBasicMaterial({color:0xff8a3d, transparent:true, opacity:0.95});
 
     for (var lat=-60; lat<=60; lat+=30){
       var pts = [];
@@ -185,7 +195,7 @@
         pts.push(latLonToUnit(lat,lon).multiplyScalar(R));
       }
       var geo = new THREE.BufferGeometry().setFromPoints(pts);
-      group.add(new THREE.Line(geo, lat===0?boldMat:mat));
+      group.add(new THREE.Line(geo, lat===0?equatorMat:mat));
     }
     for (var m=0; m<180; m+=30){
       var pts2 = [];
@@ -196,11 +206,19 @@
         pts2.push(latLonToUnit(t2,m+180).multiplyScalar(R));
       }
       var geo2 = new THREE.BufferGeometry().setFromPoints(pts2);
-      group.add(new THREE.LineLoop(geo2, m===0?boldMat:mat));
+      group.add(new THREE.LineLoop(geo2, m===0?primeMeridianMat:mat));
     }
+
+    var pmLabel = makeTextSprite('0°(본초자오선)', {fontSize:34, width:340, height:64, color:'#ffb87a'});
+    pmLabel.position.copy(latLonToUnit(6, 0).multiplyScalar(R + 0.3));
+    group.add(pmLabel);
+
     return group;
   }
   scene.add(buildGraticule());
+
+  var centerVizGroup = new THREE.Group();
+  scene.add(centerVizGroup);
 
   function animate(){
     requestAnimationFrame(animate);
@@ -209,21 +227,29 @@
   }
 
   // ---------- label sprites ----------
-  function makeLabelSprite(text){
+  function makeTextSprite(text, opts){
+    opts = opts || {};
+    var width = opts.width || 128, height = opts.height || 128;
+    var fontSize = opts.fontSize || 88;
+    var color = opts.color || '#ffe9b3';
     var canvas = document.createElement('canvas');
-    canvas.width = 128; canvas.height = 128;
+    canvas.width = width; canvas.height = height;
     var ctx = canvas.getContext('2d');
-    ctx.font = 'bold 88px system-ui, sans-serif';
-    ctx.fillStyle = '#ffe9b3';
+    ctx.font = 'bold '+fontSize+'px system-ui, sans-serif';
+    ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 64, 68);
+    ctx.fillText(text, width/2, height/2 + fontSize*0.05);
     var tex = new THREE.CanvasTexture(canvas);
     var mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false});
     var sprite = new THREE.Sprite(mat);
-    sprite.scale.set(0.34,0.34,1);
+    var scaleH = 0.34 * (height/width);
+    sprite.scale.set(0.34, scaleH, 1);
     sprite.renderOrder = 10;
     return sprite;
+  }
+  function makeLabelSprite(text){
+    return makeTextSprite(text, {fontSize:88, width:128, height:128, color:'#ffe9b3'});
   }
 
   // ---------- point management ----------
@@ -311,6 +337,38 @@
     recomputeTriangles();
   }
 
+  // ---------- center-angle visualization (radii O-A/O-B/O-C + angle wedges) ----------
+  function clearCenterViz(){
+    while (centerVizGroup.children.length){ centerVizGroup.remove(centerVizGroup.children[0]); }
+    centerVizPicks = [];
+  }
+
+  function buildCenterViz(tri){
+    clearCenterViz();
+    var P = tri.names.map(findPoint);
+    var radiusMat = new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.5});
+    P.forEach(function(p){
+      var geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), p.vec.clone().multiplyScalar(R)]);
+      centerVizGroup.add(new THREE.Line(geo, radiusMat));
+    });
+
+    var wedgeR = 0.55;
+    var wedgeMat = new THREE.LineBasicMaterial({color:0xffb020, transparent:true, opacity:0.95});
+    var pairs = [[P[0],P[1]], [P[1],P[2]], [P[2],P[0]]];
+    pairs.forEach(function(pair){
+      var v0 = pair[0].vec, v1 = pair[1].vec;
+      var arcPts = slerpArcPoints(v0, v1, 32).map(function(v){ return v.clone().multiplyScalar(wedgeR); });
+      var geo = new THREE.BufferGeometry().setFromPoints(arcPts);
+      centerVizGroup.add(new THREE.Line(geo, wedgeMat));
+
+      var mid = arcPts[Math.floor(arcPts.length/2)].clone().normalize().multiplyScalar(wedgeR + 0.3);
+      var label = makeTextSprite(pair[0].name+'O'+pair[1].name, {fontSize:34, width:160, height:64, color:'#ffd27a'});
+      label.position.copy(mid);
+      centerVizGroup.add(label);
+      centerVizPicks.push({sprite:label, names:[pair[0].name, pair[1].name]});
+    });
+  }
+
   // ---------- triangle detection ----------
   function triKey(names){ return names.slice().sort().join(''); }
 
@@ -384,6 +442,15 @@
     var hits = raycaster.intersectObjects(meshes);
     if (hits.length){
       handlePointPicked(hits[0].object.userData.pointName);
+      return;
+    }
+    if (centerVizPicks.length){
+      var sprites = centerVizPicks.map(function(c){return c.sprite;});
+      var hits2 = raycaster.intersectObjects(sprites);
+      if (hits2.length){
+        var picked = centerVizPicks.filter(function(c){return c.sprite===hits2[0].object;})[0];
+        if (picked) showCenterAngleExplanation(picked);
+      }
     }
   });
 
@@ -472,14 +539,35 @@
     document.getElementById('triEmpty').style.display = triangles.length ? 'none':'block';
   }
 
+  function showCenterAngleExplanation(pick){
+    var nameX = pick.names[0], nameY = pick.names[1];
+    var px = findPoint(nameX), py = findPoint(nameY);
+    if (!px || !py) return;
+    var dot = clamp(px.vec.dot(py.vec));
+    var deg = toDeg(Math.acos(dot));
+    var html = '';
+    html += '<div class="step">구의 중심 O에서 '+nameX+', '+nameY+'까지 그은 두 반지름 O'+nameX+'와 O'+nameY+' 사이의 각 ∠'+nameX+'O'+nameY+'를 구합니다. 이 각은 두 점을 지나는 대원(great circle) 호의 중심각이며, 구면 삼각형에서 그 호(변)의 길이와 같습니다.</div>';
+    html += '<div class="step"><span class="formula">벡터 '+nameX+' (단위벡터) = ('+fmt(px.vec.x,3)+', '+fmt(px.vec.y,3)+', '+fmt(px.vec.z,3)+')<br>'+
+            '벡터 '+nameY+' (단위벡터) = ('+fmt(py.vec.x,3)+', '+fmt(py.vec.y,3)+', '+fmt(py.vec.z,3)+')</span></div>';
+    html += '<div class="step"><span class="formula">cos(∠'+nameX+'O'+nameY+') = 벡터'+nameX+' · 벡터'+nameY+' = ('+fmt(px.vec.x,3)+'×'+fmt(py.vec.x,3)+') + ('+fmt(px.vec.y,3)+'×'+fmt(py.vec.y,3)+') + ('+fmt(px.vec.z,3)+'×'+fmt(py.vec.z,3)+') = '+fmt(dot)+'<br>'+
+            '∠'+nameX+'O'+nameY+' = arccos('+fmt(dot)+') = <span class="result">'+deg.toFixed(4)+'°</span></span></div>';
+    document.getElementById('angleExplain').innerHTML = html;
+    document.getElementById('angleExplainSection').style.display = 'block';
+  }
+  document.getElementById('btnCloseAngleExplain').addEventListener('click', function(){
+    document.getElementById('angleExplainSection').style.display = 'none';
+  });
+
   function renderCalculation(){
     var section = document.getElementById('calcSection');
     var calc = document.getElementById('calc');
-    if (!activeTriangleKey){ section.style.display='none'; calc.innerHTML=''; return; }
+    document.getElementById('angleExplainSection').style.display = 'none';
+    if (!activeTriangleKey){ section.style.display='none'; calc.innerHTML=''; clearCenterViz(); return; }
     var tri = triangles.find(function(t){return t.key===activeTriangleKey;});
     var P = tri.names.map(findPoint);
     var res = solveSphericalTriangle(P);
     section.style.display = 'block';
+    buildCenterViz(tri);
 
     var html = '';
     html += '<h3>1. 꼭짓점의 단위벡터 (위도·경도 → 직교좌표)</h3>';
