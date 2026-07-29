@@ -1087,6 +1087,39 @@
     var geo = new THREE.BufferGeometry().setFromPoints(pts);
     pzsVizGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({color:color, transparent:true, opacity:0.9})));
   }
+  function slerpAt(v0, v1, t){
+    var dot = clamp(v0.dot(v1));
+    var theta = Math.acos(dot);
+    if (theta < 1e-6) return v0.clone();
+    var a = Math.sin((1-t)*theta)/Math.sin(theta);
+    var b = Math.sin(t*theta)/Math.sin(theta);
+    return new THREE.Vector3(v0.x*a+v1.x*b, v0.y*a+v1.y*b, v0.z*a+v1.z*b);
+  }
+  function forwardGeodesic(latDeg, lonDeg, bearingDeg, distDeg){
+    // standard "destination point given bearing and distance" spherical formula
+    var lat1 = toRad(latDeg), lon1 = toRad(lonDeg), brng = toRad(bearingDeg), d = toRad(distDeg);
+    var lat2 = Math.asin(Math.sin(lat1)*Math.cos(d) + Math.cos(lat1)*Math.sin(d)*Math.cos(brng));
+    var lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(d)*Math.cos(lat1), Math.cos(d) - Math.sin(lat1)*Math.sin(lat2));
+    return {lat: toDeg(lat2), lon: toDeg(lon2)};
+  }
+  function addPzsArcLabel(vFrom, vTo, deg, color){
+    var mid = slerpAt(vFrom, vTo, 0.5);
+    var label = makeTextSprite(deg.toFixed(1)+'°', {fontSize:30, width:110, height:56, color: color || '#9fd6ff'});
+    label.position.copy(mid).multiplyScalar(R + 0.15);
+    pzsVizGroup.add(label);
+  }
+  function addPzsAngleWedge(vertex, vTowardA, vTowardB, arcLenA, arcLenB, angleDeg, color){
+    var stepDeg = Math.max(2, Math.min(9, 0.3*Math.min(arcLenA, arcLenB)));
+    var tA = Math.min(0.45, stepDeg/Math.max(arcLenA,1e-6));
+    var tB = Math.min(0.45, stepDeg/Math.max(arcLenB,1e-6));
+    var pA = slerpAt(vertex, vTowardA, tA);
+    var pB = slerpAt(vertex, vTowardB, tB);
+    addPzsArc(pA, pB, color);
+    var mid = slerpAt(pA, pB, 0.5).normalize();
+    var label = makeTextSprite(angleDeg.toFixed(1)+'°', {fontSize:30, width:110, height:56, color: color || '#ffd27a'});
+    label.position.copy(mid).multiplyScalar(R + 0.2);
+    pzsVizGroup.add(label);
+  }
 
   function renderPzsViz(){
     while (pzsVizGroup.children.length){ pzsVizGroup.remove(pzsVizGroup.children[0]); }
@@ -1100,27 +1133,25 @@
     var altS = parseFloat(document.getElementById('pzs-altS').value);
     var altP = parseFloat(document.getElementById('pzs-altP').value);
     var resZ = stationCalc('Z', az, altS, altP);
+    if (!resZ) return;
 
-    // S is arbitrarily fixed on the prime meridian (its longitude is never knowable);
-    // its latitude becomes known only once the declination is solved in Step 3.
-    var decForS = (resZ && pzsStep >= 3) ? resZ.dec : 0;
-    var vecS = latLonToUnit(decForS, 0);
+    // Z is fixed on the prime meridian as the visualization's reference meridian
+    // (its true longitude is unknowable either way). S's actual position is then
+    // derived immediately via the forward-geodesic (bearing+distance) formula,
+    // so the full P-Z-S triangle appears as soon as Step 2's inputs are complete.
+    var vecZ = latLonToUnit(altP, 0);
+    var sPos = forwardGeodesic(altP, 0, az, resZ.SX);
+    var vecS = latLonToUnit(sPos.lat, sPos.lon);
+
     addPzsMarker(vecS, 'S', 0xff6bd6);
+    addPzsMarker(vecZ, 'Z', 0x4c8dff);
+    addPzsArc(vecP, vecZ, 0x6f7fa8);
+    addPzsArc(vecP, vecS, 0x6f7fa8);
+    addPzsArc(vecZ, vecS, 0x3ecf8e);
 
-    if (resZ){
-      // arc P-Z depends only on colatitude, so it is already correct even
-      // while Z's longitude is still a placeholder
-      var lonZ = (pzsStep >= 4 && resZ.angP !== null) ? resZ.angP : 0;
-      var vecZ = latLonToUnit(altP, lonZ);
-      addPzsMarker(vecZ, 'Z', 0x4c8dff);
-      addPzsArc(vecP, vecZ, 0x6f7fa8);
-      addPzsArc(vecP, vecS, 0x6f7fa8);
-      if (pzsStep >= 4 && resZ.angP !== null){
-        addPzsArc(vecZ, vecS, 0x3ecf8e);
-      }
-    } else if (pzsStep >= 3){
-      addPzsArc(vecP, vecS, 0x6f7fa8);
-    }
+    addPzsArcLabel(vecP, vecZ, resZ.PX, '#9fc4ff');
+    addPzsArcLabel(vecZ, vecS, resZ.SX, '#7de8c0');
+    addPzsAngleWedge(vecZ, vecP, vecS, resZ.PX, resZ.SX, resZ.angX, '#ffd27a');
 
     if (pzsStep >= 5){
       var azY = parseFloat(document.getElementById('pzs-az-y').value);
@@ -1129,14 +1160,21 @@
       var resY = stationCalc('Y', azY, altSY, altPY);
       if (resY && resY.angP !== null){
         var relation = document.getElementById('pzs-lonRelation').value;
-        var lonY = relation === 'between' ? -resY.angP : resY.angP;
+        var deltaZ = 0 - sPos.lon; // Z's longitude offset from S
+        var signZ = deltaZ < 0 ? -1 : 1;
+        var signY = (relation === 'between') ? -signZ : signZ;
+        var lonY = sPos.lon + signY * resY.angP;
         var vecY = latLonToUnit(altPY, lonY);
+
         addPzsMarker(vecY, 'Y', 0xffa64c);
         addPzsArc(vecP, vecY, 0x6f7fa8);
+        addPzsArc(vecY, vecS, 0x3ecf8e);
+        addPzsArcLabel(vecP, vecY, resY.PX, '#ffcf9f');
+        addPzsArcLabel(vecY, vecS, resY.SX, '#7de8c0');
+        addPzsAngleWedge(vecY, vecP, vecS, resY.PX, resY.SX, resY.angX, '#ffd27a');
 
-        if (pzsStep >= 6 && resZ && resZ.angP !== null){
-          var vecZFinal = latLonToUnit(altP, resZ.angP);
-          addPzsArc(vecY, vecZFinal, 0xffd27a);
+        if (pzsStep >= 6){
+          addPzsArc(vecY, vecZ, 0xffd27a);
         }
       }
     }
