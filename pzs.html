@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>구면 삼각법 계산기</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#182238; --panel2:#1f2b47; --border:#2c3a5c;
+    --text:#e7ecf7; --muted:#93a1c2; --accent:#4c8dff; --accent2:#ffb020;
+    --good:#3ecf8e; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Pretendard","Malgun Gothic",system-ui,sans-serif;}
+  #app{display:flex;height:100vh;width:100vw;overflow:hidden;}
+  #viewport{flex:1 1 auto;position:relative;min-width:0;}
+  #viewport canvas{display:block;width:100%;height:100%;}
+  #hint{position:absolute;left:12px;bottom:12px;font-size:12px;color:var(--muted);background:rgba(15,23,42,.6);padding:6px 10px;border-radius:6px;line-height:1.5;pointer-events:none;}
+  #sidebar{width:380px;flex:0 0 auto;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;padding:16px;}
+  h1{font-size:16px;margin:0 0 4px;}
+  .sub{font-size:12px;color:var(--muted);margin:0 0 16px;}
+  section{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;}
+  section h2{font-size:13px;margin:0 0 10px;color:var(--accent);letter-spacing:.02em;}
+  .row{display:flex;gap:6px;margin-bottom:8px;align-items:center;}
+  .row label{font-size:11px;color:var(--muted);width:38px;flex:0 0 auto;}
+  input[type=number],input[type=text]{
+    flex:1 1 auto;background:#0f1626;border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:6px 8px;font-size:13px;min-width:0;
+  }
+  input[name=letter]{flex:0 0 48px;text-align:center;text-transform:uppercase;}
+  button{
+    background:var(--accent);color:#fff;border:none;border-radius:6px;padding:7px 12px;
+    font-size:12px;cursor:pointer;white-space:nowrap;
+  }
+  button:hover{filter:brightness(1.1);}
+  button.secondary{background:#33415f;}
+  button.danger{background:#5c2b2b;}
+  button.small{padding:3px 8px;font-size:11px;}
+  #err{color:var(--bad);font-size:11px;min-height:14px;margin-top:2px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th,td{padding:4px 4px;text-align:left;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-weight:500;}
+  .badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:11px;margin-right:6px;}
+  .list-item{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:6px;margin-bottom:4px;background:#0f1626;font-size:12px;}
+  .list-item.selectable{cursor:pointer;}
+  .list-item.selectable:hover{background:#16213a;}
+  .list-item.active{outline:1.5px solid var(--accent2);background:#26200f;}
+  .muted{color:var(--muted);}
+  .empty{color:var(--muted);font-size:12px;padding:4px 2px;}
+  #calc h3{font-size:12px;color:var(--accent2);margin:14px 0 6px;}
+  #calc h3:first-child{margin-top:0;}
+  #calc .step{background:#0f1626;border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12px;line-height:1.7;}
+  #calc .formula{font-family:"Cambria Math","STIX Two Math",serif;font-size:13px;color:#dce6ff;}
+  #calc .result{font-weight:700;color:var(--good);}
+  #calc table td, #calc table th{padding:5px 6px;}
+  .flexend{display:flex;justify-content:flex-end;gap:8px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="viewport">
+    <div id="hint">마우스 드래그: 회전 · 휠: 확대/축소<br>구 위의 점을 두 번 클릭하면 대원 호(arc)로 연결됩니다.</div>
+  </div>
+  <div id="sidebar">
+    <h1>구면 삼각법 계산기</h1>
+    <p class="sub">위도·경도로 점을 찍고, 두 점을 클릭해 대원의 호로 연결하세요. 삼각형이 닫히면 목록에서 선택해 각을 구합니다.</p>
+
+    <section>
+      <h2>① 점 추가</h2>
+      <div class="row">
+        <label>위도</label>
+        <input type="number" id="inLat" step="0.0001" min="-90" max="90" placeholder="-90 ~ 90">
+        <label style="width:auto">°</label>
+      </div>
+      <div class="row">
+        <label>경도</label>
+        <input type="number" id="inLon" step="0.0001" min="-180" max="180" placeholder="-180 ~ 180">
+        <label style="width:auto">°</label>
+      </div>
+      <div class="row">
+        <label>이름</label>
+        <input type="text" name="letter" id="inName" maxlength="1" placeholder="A">
+        <button id="btnAdd">점 추가</button>
+      </div>
+      <div id="err"></div>
+      <div class="flexend">
+        <button class="secondary small" id="btnExample">예시 불러오기</button>
+        <button class="danger small" id="btnReset">전체 초기화</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>② 점 목록 <span class="muted" id="ptCount"></span></h2>
+      <table id="ptTable">
+        <thead><tr><th>이름</th><th>위도</th><th>경도</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="ptEmpty">아직 추가된 점이 없습니다.</div>
+    </section>
+
+    <section>
+      <h2>③ 연결된 호 (변)</h2>
+      <div id="edgeList"></div>
+      <div class="empty" id="edgeEmpty">아직 연결된 호가 없습니다.</div>
+    </section>
+
+    <section>
+      <h2>④ 닫힌 삼각형</h2>
+      <div id="triList"></div>
+      <div class="empty" id="triEmpty">삼각형을 이루는 세 호가 아직 없습니다.</div>
+    </section>
+
+    <section id="calcSection" style="display:none;">
+      <h2>⑤ 계산 과정</h2>
+      <div id="calc"></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var R = 2; // sphere radius used only for rendering; math uses unit vectors
+
+  // ---------- state ----------
+  var points = [];   // {name, lat, lon, vec(unit THREE.Vector3), mesh, label}
+  var edges = [];    // {a, b, line}
+  var triangles = []; // {key, names:[a,b,c]}
+  var pendingSelection = []; // point names picked toward forming an edge
+  var activeTriangleKey = null;
+
+  // ---------- three.js setup ----------
+  var viewport = document.getElementById('viewport');
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0f172a);
+
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(3.6, 2.4, 4.2);
+
+  var renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  viewport.appendChild(renderer.domElement);
+
+  var controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 2.8;
+  controls.maxDistance = 12;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+
+  function resize(){
+    var w = viewport.clientWidth, h = viewport.clientHeight;
+    camera.aspect = w/h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w,h);
+  }
+  window.addEventListener('resize', resize);
+
+  // base globe (translucent) + graticule
+  var globe = new THREE.Mesh(
+    new THREE.SphereGeometry(R, 48, 32),
+    new THREE.MeshBasicMaterial({color:0x1b2a4a, transparent:true, opacity:0.35})
+  );
+  scene.add(globe);
+
+  function latLonToUnit(latDeg, lonDeg){
+    var lat = latDeg * Math.PI/180, lon = lonDeg * Math.PI/180;
+    var x = Math.cos(lat) * Math.cos(lon);
+    var z = Math.cos(lat) * Math.sin(lon);
+    var y = Math.sin(lat);
+    return new THREE.Vector3(x,y,z);
+  }
+
+  function buildGraticule(){
+    var group = new THREE.Group();
+    var mat = new THREE.LineBasicMaterial({color:0x3e5486, transparent:true, opacity:0.5});
+    var boldMat = new THREE.LineBasicMaterial({color:0x6f8ecf, transparent:true, opacity:0.85});
+
+    for (var lat=-60; lat<=60; lat+=30){
+      var pts = [];
+      for (var lon=0; lon<=360; lon+=4){
+        pts.push(latLonToUnit(lat,lon).multiplyScalar(R));
+      }
+      var geo = new THREE.BufferGeometry().setFromPoints(pts);
+      group.add(new THREE.Line(geo, lat===0?boldMat:mat));
+    }
+    for (var m=0; m<180; m+=30){
+      var pts2 = [];
+      for (var t=-90; t<=90; t+=4){
+        pts2.push(latLonToUnit(t,m).multiplyScalar(R));
+      }
+      for (var t2=90; t2>=-90; t2-=4){
+        pts2.push(latLonToUnit(t2,m+180).multiplyScalar(R));
+      }
+      var geo2 = new THREE.BufferGeometry().setFromPoints(pts2);
+      group.add(new THREE.LineLoop(geo2, m===0?boldMat:mat));
+    }
+    return group;
+  }
+  scene.add(buildGraticule());
+
+  function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  // ---------- label sprites ----------
+  function makeLabelSprite(text){
+    var canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 128;
+    var ctx = canvas.getContext('2d');
+    ctx.font = 'bold 88px system-ui, sans-serif';
+    ctx.fillStyle = '#ffe9b3';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 64, 68);
+    var tex = new THREE.CanvasTexture(canvas);
+    var mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false});
+    var sprite = new THREE.Sprite(mat);
+    sprite.scale.set(0.34,0.34,1);
+    sprite.renderOrder = 10;
+    return sprite;
+  }
+
+  // ---------- point management ----------
+  function findPoint(name){
+    for (var i=0;i<points.length;i++) if (points[i].name===name) return points[i];
+    return null;
+  }
+
+  function addPoint(lat, lon, name){
+    var vec = latLonToUnit(lat, lon);
+    var mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.075, 20, 16),
+      new THREE.MeshBasicMaterial({color:0x4c8dff})
+    );
+    mesh.position.copy(vec).multiplyScalar(R);
+    scene.add(mesh);
+
+    var label = makeLabelSprite(name);
+    label.position.copy(vec).multiplyScalar(R + 0.22);
+    scene.add(label);
+
+    var p = {name:name, lat:lat, lon:lon, vec:vec, mesh:mesh, label:label};
+    points.push(p);
+    mesh.userData.pointName = name;
+    return p;
+  }
+
+  function removePoint(name){
+    var p = findPoint(name);
+    if (!p) return;
+    scene.remove(p.mesh); scene.remove(p.label);
+    points = points.filter(function(x){return x.name!==name;});
+    edges = edges.filter(function(e){
+      if (e.a===name || e.b===name){ scene.remove(e.line); return false; }
+      return true;
+    });
+    pendingSelection = pendingSelection.filter(function(n){return n!==name;});
+    recomputeTriangles();
+    renderAll();
+  }
+
+  // ---------- edges (great-circle arcs) ----------
+  function hasEdge(a,b){
+    return edges.some(function(e){ return (e.a===a&&e.b===b)||(e.a===b&&e.b===a); });
+  }
+
+  function slerpArcPoints(v0, v1, segments){
+    var dot = Math.max(-1, Math.min(1, v0.dot(v1)));
+    var theta = Math.acos(dot);
+    var pts = [];
+    if (theta < 1e-6){ return [v0.clone(), v1.clone()]; }
+    for (var i=0;i<=segments;i++){
+      var t = i/segments;
+      var a = Math.sin((1-t)*theta)/Math.sin(theta);
+      var b = Math.sin(t*theta)/Math.sin(theta);
+      var p = new THREE.Vector3(
+        v0.x*a + v1.x*b,
+        v0.y*a + v1.y*b,
+        v0.z*a + v1.z*b
+      );
+      pts.push(p);
+    }
+    return pts;
+  }
+
+  function addEdge(nameA, nameB){
+    if (nameA===nameB) return;
+    if (hasEdge(nameA,nameB)) return;
+    var pa = findPoint(nameA), pb = findPoint(nameB);
+    if (!pa || !pb) return;
+    var arcPts = slerpArcPoints(pa.vec, pb.vec, 64).map(function(v){return v.clone().multiplyScalar(R);});
+    var geo = new THREE.BufferGeometry().setFromPoints(arcPts);
+    var mat = new THREE.LineBasicMaterial({color:0x4c8dff, linewidth:2});
+    var line = new THREE.Line(geo, mat);
+    scene.add(line);
+    edges.push({a:nameA, b:nameB, line:line});
+    recomputeTriangles();
+  }
+
+  function removeEdge(nameA, nameB){
+    edges = edges.filter(function(e){
+      if ((e.a===nameA&&e.b===nameB)||(e.a===nameB&&e.b===nameA)){ scene.remove(e.line); return false; }
+      return true;
+    });
+    recomputeTriangles();
+  }
+
+  // ---------- triangle detection ----------
+  function triKey(names){ return names.slice().sort().join(''); }
+
+  function recomputeTriangles(){
+    triangles = [];
+    var names = points.map(function(p){return p.name;});
+    for (var i=0;i<names.length;i++){
+      for (var j=i+1;j<names.length;j++){
+        for (var k=j+1;k<names.length;k++){
+          var A=names[i], B=names[j], C=names[k];
+          if (hasEdge(A,B) && hasEdge(B,C) && hasEdge(A,C)){
+            triangles.push({key:triKey([A,B,C]), names:[A,B,C]});
+          }
+        }
+      }
+    }
+    if (activeTriangleKey && !triangles.some(function(t){return t.key===activeTriangleKey;})){
+      activeTriangleKey = null;
+    }
+  }
+
+  // ---------- selection / picking ----------
+  function setPointColor(name, hex){
+    var p = findPoint(name);
+    if (p) p.mesh.material.color.setHex(hex);
+  }
+  function refreshPointColors(){
+    points.forEach(function(p){
+      var selected = pendingSelection.indexOf(p.name) !== -1;
+      p.mesh.material.color.setHex(selected ? 0xffaa00 : 0x4c8dff);
+    });
+  }
+  function refreshEdgeColors(){
+    var activeNames = activeTriangleKey ? triangles.find(function(t){return t.key===activeTriangleKey;}).names : null;
+    edges.forEach(function(e){
+      var inActive = activeNames && activeNames.indexOf(e.a)!==-1 && activeNames.indexOf(e.b)!==-1;
+      e.line.material.color.setHex(inActive ? 0x3ecf8e : 0x4c8dff);
+    });
+  }
+
+  function handlePointPicked(name){
+    var idx = pendingSelection.indexOf(name);
+    if (idx !== -1){ pendingSelection.splice(idx,1); refreshPointColors(); return; }
+    pendingSelection.push(name);
+    if (pendingSelection.length === 2){
+      addEdge(pendingSelection[0], pendingSelection[1]);
+      pendingSelection = [];
+      renderAll();
+    }
+    refreshPointColors();
+  }
+
+  var raycaster = new THREE.Raycaster();
+  var mouse = new THREE.Vector2();
+  var downPos = null;
+
+  renderer.domElement.addEventListener('pointerdown', function(e){
+    downPos = {x:e.clientX, y:e.clientY};
+  });
+  renderer.domElement.addEventListener('pointerup', function(e){
+    if (!downPos) return;
+    var dx = e.clientX-downPos.x, dy = e.clientY-downPos.y;
+    downPos = null;
+    if (Math.sqrt(dx*dx+dy*dy) > 5) return; // treat as drag/rotate, not a click
+
+    var rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+    mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(mouse, camera);
+    var meshes = points.map(function(p){return p.mesh;});
+    var hits = raycaster.intersectObjects(meshes);
+    if (hits.length){
+      handlePointPicked(hits[0].object.userData.pointName);
+    }
+  });
+
+  // ---------- math: spherical triangle ----------
+  function toDeg(rad){ return rad*180/Math.PI; }
+  function clamp(x){ return Math.max(-1, Math.min(1, x)); }
+  function fmt(n, d){ return n.toFixed(d===undefined?4:d); }
+
+  function angularDistanceDeg(v0, v1){
+    return toDeg(Math.acos(clamp(v0.dot(v1))));
+  }
+
+  function solveSphericalTriangle(P){ // P = [{name,lat,lon,vec}, ...] length 3, order = A,B,C
+    var A=P[0], B=P[1], C=P[2];
+    var aDeg = angularDistanceDeg(B.vec, C.vec); // side opposite A
+    var bDeg = angularDistanceDeg(C.vec, A.vec); // side opposite B
+    var cDeg = angularDistanceDeg(A.vec, B.vec); // side opposite C
+
+    var a = aDeg*Math.PI/180, b = bDeg*Math.PI/180, c = cDeg*Math.PI/180;
+
+    function vertexAngleDeg(oppRad, adj1Rad, adj2Rad){
+      var denom = Math.sin(adj1Rad)*Math.sin(adj2Rad);
+      if (Math.abs(denom) < 1e-9) return null;
+      var cosAng = (Math.cos(oppRad) - Math.cos(adj1Rad)*Math.cos(adj2Rad)) / denom;
+      return toDeg(Math.acos(clamp(cosAng)));
+    }
+
+    var angleA = vertexAngleDeg(a, b, c);
+    var angleB = vertexAngleDeg(b, c, a);
+    var angleC = vertexAngleDeg(c, a, b);
+
+    return {A:A,B:B,C:C, aDeg:aDeg,bDeg:bDeg,cDeg:cDeg, angleA:angleA, angleB:angleB, angleC:angleC};
+  }
+
+  // ---------- UI: point list / edge list / triangle list ----------
+  function renderPointTable(){
+    var tbody = document.querySelector('#ptTable tbody');
+    tbody.innerHTML = '';
+    points.forEach(function(p){
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><span class="badge">'+p.name+'</span></td>'+
+        '<td>'+p.lat.toFixed(2)+'°</td>'+
+        '<td>'+p.lon.toFixed(2)+'°</td>'+
+        '<td></td>';
+      var btn = document.createElement('button');
+      btn.className = 'small danger'; btn.textContent = '삭제';
+      btn.onclick = function(){ removePoint(p.name); };
+      tr.lastElementChild.appendChild(btn);
+      tbody.appendChild(tr);
+    });
+    document.getElementById('ptCount').textContent = points.length ? '('+points.length+'개)' : '';
+    document.getElementById('ptEmpty').style.display = points.length ? 'none':'block';
+    document.getElementById('ptTable').style.display = points.length ? 'table':'none';
+  }
+
+  function renderEdgeList(){
+    var container = document.getElementById('edgeList');
+    container.innerHTML = '';
+    edges.forEach(function(e){
+      var div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = '<span>'+e.a+' — '+e.b+' <span class="muted">('+angularDistanceDeg(findPoint(e.a).vec, findPoint(e.b).vec).toFixed(2)+'°)</span></span>';
+      var btn = document.createElement('button');
+      btn.className = 'small danger'; btn.textContent = '연결 해제';
+      btn.onclick = function(){ removeEdge(e.a, e.b); renderAll(); };
+      div.appendChild(btn);
+      container.appendChild(div);
+    });
+    document.getElementById('edgeEmpty').style.display = edges.length ? 'none':'block';
+  }
+
+  function renderTriangleList(){
+    var container = document.getElementById('triList');
+    container.innerHTML = '';
+    triangles.forEach(function(t){
+      var div = document.createElement('div');
+      div.className = 'list-item selectable' + (t.key===activeTriangleKey ? ' active':'');
+      div.innerHTML = '<span>△ '+t.names.join('')+'</span><span class="muted">선택</span>';
+      div.onclick = function(){
+        activeTriangleKey = (activeTriangleKey===t.key) ? null : t.key;
+        renderAll();
+      };
+      container.appendChild(div);
+    });
+    document.getElementById('triEmpty').style.display = triangles.length ? 'none':'block';
+  }
+
+  function renderCalculation(){
+    var section = document.getElementById('calcSection');
+    var calc = document.getElementById('calc');
+    if (!activeTriangleKey){ section.style.display='none'; calc.innerHTML=''; return; }
+    var tri = triangles.find(function(t){return t.key===activeTriangleKey;});
+    var P = tri.names.map(findPoint);
+    var res = solveSphericalTriangle(P);
+    section.style.display = 'block';
+
+    var html = '';
+    html += '<h3>1. 꼭짓점의 단위벡터 (위도·경도 → 직교좌표)</h3>';
+    html += '<div class="step"><span class="formula">x = cos(위도)·cos(경도), &nbsp; y = sin(위도), &nbsp; z = cos(위도)·sin(경도)</span></div>';
+    html += '<table><thead><tr><th>점</th><th>위도, 경도</th><th>x, y, z</th></tr></thead><tbody>';
+    P.forEach(function(p){
+      html += '<tr><td>'+p.name+'</td><td>'+p.lat.toFixed(2)+'°, '+p.lon.toFixed(2)+'°</td>'+
+              '<td>'+fmt(p.vec.x,3)+', '+fmt(p.vec.y,3)+', '+fmt(p.vec.z,3)+'</td></tr>';
+    });
+    html += '</tbody></table>';
+
+    html += '<h3>2. 변의 길이 (두 점 사이의 대원 각거리)</h3>';
+    html += '<div class="step"><span class="formula">cos(변) = P₁·P₂ (단위벡터의 내적) → 변 = arccos(P₁·P₂)</span></div>';
+
+    var A=res.A.name, B=res.B.name, C=res.C.name;
+    var dotBC = clamp(res.B.vec.dot(res.C.vec));
+    var dotCA = clamp(res.C.vec.dot(res.A.vec));
+    var dotAB = clamp(res.A.vec.dot(res.B.vec));
+
+    html += '<div class="step">변 a ('+B+C+', '+A+'의 대변)<br>'+
+            '<span class="formula">cos a = '+B+'·'+C+' = '+fmt(dotBC)+' &nbsp;→&nbsp; a = arccos('+fmt(dotBC)+') = <span class="result">'+res.aDeg.toFixed(4)+'°</span></span></div>';
+    html += '<div class="step">변 b ('+C+A+', '+B+'의 대변)<br>'+
+            '<span class="formula">cos b = '+C+'·'+A+' = '+fmt(dotCA)+' &nbsp;→&nbsp; b = arccos('+fmt(dotCA)+') = <span class="result">'+res.bDeg.toFixed(4)+'°</span></span></div>';
+    html += '<div class="step">변 c ('+A+B+', '+C+'의 대변)<br>'+
+            '<span class="formula">cos c = '+A+'·'+B+' = '+fmt(dotAB)+' &nbsp;→&nbsp; c = arccos('+fmt(dotAB)+') = <span class="result">'+res.cDeg.toFixed(4)+'°</span></span></div>';
+
+    html += '<h3>3. 구면 삼각법의 코사인 법칙으로 각 계산</h3>';
+    html += '<div class="step"><span class="formula">cos a = cos b·cos c + sin b·sin c·cos A &nbsp;→&nbsp; cos A = (cos a − cos b·cos c) / (sin b·sin c)</span></div>';
+
+    function angleStep(label, oppDeg, adj1Deg, adj2Deg, angleVal){
+      var oppR=oppDeg*Math.PI/180, adj1R=adj1Deg*Math.PI/180, adj2R=adj2Deg*Math.PI/180;
+      var num = Math.cos(oppR) - Math.cos(adj1R)*Math.cos(adj2R);
+      var den = Math.sin(adj1R)*Math.sin(adj2R);
+      var frag = '<div class="step">각 '+label+'<br><span class="formula">cos '+label+' = (cos '+oppDeg.toFixed(2)+'° − cos '+adj1Deg.toFixed(2)+'°·cos '+adj2Deg.toFixed(2)+'°) / (sin '+adj1Deg.toFixed(2)+'°·sin '+adj2Deg.toFixed(2)+'°)<br>'+
+        '= ('+fmt(Math.cos(oppR))+' − '+fmt(Math.cos(adj1R)*Math.cos(adj2R))+') / '+fmt(den)+' = '+fmt(num/den)+'</span><br>'+
+        (angleVal===null ? '<span style="color:var(--bad)">삼각형이 퇴화되어 계산할 수 없습니다.</span>' :
+        '<span class="formula">'+label+' = arccos('+fmt(num/den)+') = <span class="result">'+angleVal.toFixed(4)+'°</span></span>')+
+        '</div>';
+      return frag;
+    }
+    html += angleStep('∠'+A, res.aDeg, res.bDeg, res.cDeg, res.angleA);
+    html += angleStep('∠'+B, res.bDeg, res.cDeg, res.aDeg, res.angleB);
+    html += angleStep('∠'+C, res.cDeg, res.aDeg, res.bDeg, res.angleC);
+
+    html += '<h3>4. 결과 요약</h3>';
+    if (res.angleA!==null && res.angleB!==null && res.angleC!==null){
+      var sum = res.angleA+res.angleB+res.angleC;
+      var excess = sum-180;
+      html += '<div class="step">'+
+        '∠'+A+' = <span class="result">'+res.angleA.toFixed(4)+'°</span>, '+
+        '∠'+B+' = <span class="result">'+res.angleB.toFixed(4)+'°</span>, '+
+        '∠'+C+' = <span class="result">'+res.angleC.toFixed(4)+'°</span><br>'+
+        '내각의 합 = '+sum.toFixed(4)+'° (평면과 달리 180°를 초과함)<br>'+
+        '구과량(spherical excess) E = 합 − 180° = <span class="result">'+excess.toFixed(4)+'°</span> '+
+        '<span class="muted">(단위 구에서 이 삼각형의 넓이는 E를 라디안으로 환산한 값과 같습니다: '+ (excess*Math.PI/180).toFixed(4) +' 스테라디안)</span>'+
+        '</div>';
+    } else {
+      html += '<div class="step" style="color:var(--bad)">이 삼각형은 한 변의 길이가 0° 또는 180°에 가까워 각을 정의할 수 없습니다.</div>';
+    }
+
+    calc.innerHTML = html;
+  }
+
+  function renderAll(){
+    renderPointTable();
+    renderEdgeList();
+    renderTriangleList();
+    refreshPointColors();
+    refreshEdgeColors();
+    renderCalculation();
+  }
+
+  // ---------- add-point form ----------
+  var errBox = document.getElementById('err');
+  function showErr(msg){ errBox.textContent = msg; }
+
+  document.getElementById('btnAdd').addEventListener('click', function(){
+    showErr('');
+    var lat = parseFloat(document.getElementById('inLat').value);
+    var lon = parseFloat(document.getElementById('inLon').value);
+    var name = (document.getElementById('inName').value || '').trim().toUpperCase();
+
+    if (isNaN(lat) || lat < -90 || lat > 90){ showErr('위도는 -90° ~ 90° 사이여야 합니다.'); return; }
+    if (isNaN(lon) || lon < -180 || lon > 180){ showErr('경도는 -180° ~ 180° 사이여야 합니다.'); return; }
+    if (!/^[A-Z]$/.test(name)){ showErr('이름은 알파벳 한 글자여야 합니다.'); return; }
+    if (findPoint(name)){ showErr('이미 사용 중인 이름입니다: '+name); return; }
+
+    addPoint(lat, lon, name);
+    document.getElementById('inLat').value = '';
+    document.getElementById('inLon').value = '';
+    document.getElementById('inName').value = '';
+    renderAll();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    points.forEach(function(p){ scene.remove(p.mesh); scene.remove(p.label); });
+    edges.forEach(function(e){ scene.remove(e.line); });
+    points = []; edges = []; triangles = []; pendingSelection = []; activeTriangleKey = null;
+    showErr('');
+    renderAll();
+  });
+
+  document.getElementById('btnExample').addEventListener('click', function(){
+    document.getElementById('btnReset').click();
+    addPoint(0, 0, 'A');
+    addPoint(0, 90, 'B');
+    addPoint(90, 0, 'C');
+    addEdge('A','B'); addEdge('B','C'); addEdge('A','C');
+    recomputeTriangles();
+    activeTriangleKey = triangles.length ? triangles[0].key : null;
+    renderAll();
+  });
+
+  // ---------- boot ----------
+  resize();
+  renderAll();
+  animate();
+})();
+</script>
+</body>
+</html>
