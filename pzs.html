@@ -201,6 +201,12 @@
     </div>
     <h1>🧭 별 동시측정으로 두 지점의 거리 구하기</h1>
     <p class="sub" id="pzsStepIndicator">Step 1 / 7</p>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:-6px 0 4px;cursor:pointer;">
+      <input type="checkbox" id="pzs-showRadii" checked style="width:auto;flex:0 0 auto;"> 반지름 직선 켜기 (중심 O → 각 점)
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:0 0 10px;cursor:pointer;">
+      <input type="checkbox" id="pzs-showMeridians" checked style="width:auto;flex:0 0 auto;"> 자오선 켜기
+    </label>
 
     <div class="pzsStepPanel" data-step="1">
       <section>
@@ -389,6 +395,8 @@
     return new THREE.Vector3(x,y,z);
   }
 
+  var meridianGroup = new THREE.Group();
+
   function buildGraticule(){
     var group = new THREE.Group();
     var mat = new THREE.LineBasicMaterial({color:0x3e5486, transparent:true, opacity:0.5});
@@ -412,16 +420,17 @@
         pts2.push(latLonToUnit(t2,m+180).multiplyScalar(R));
       }
       var geo2 = new THREE.BufferGeometry().setFromPoints(pts2);
-      group.add(new THREE.LineLoop(geo2, m===0?primeMeridianMat:mat));
+      meridianGroup.add(new THREE.LineLoop(geo2, m===0?primeMeridianMat:mat));
     }
 
     var pmLabel = makeTextSprite('0°(본초자오선)', {fontSize:34, width:340, height:64, color:'#ffb87a'});
     pmLabel.position.copy(latLonToUnit(6, 0).multiplyScalar(R + 0.3));
-    group.add(pmLabel);
+    meridianGroup.add(pmLabel);
 
     return group;
   }
   scene.add(buildGraticule());
+  scene.add(meridianGroup);
 
   var centerVizGroup = new THREE.Group();
   scene.add(centerVizGroup);
@@ -1069,6 +1078,10 @@
     document.getElementById(id).addEventListener('input', updatePzsAll);
   });
   document.getElementById('pzs-lonRelation').addEventListener('change', updatePzsAll);
+  document.getElementById('pzs-showRadii').addEventListener('change', renderPzsViz);
+  document.getElementById('pzs-showMeridians').addEventListener('change', function(){
+    meridianGroup.visible = document.getElementById('pzs-showMeridians').checked;
+  });
 
   // ---------- PZS 3D visualization ----------
   function addPzsMarker(vec, name, color){
@@ -1086,6 +1099,10 @@
     var pts = slerpArcPoints(v0, v1, 48).map(function(v){ return v.clone().multiplyScalar(R); });
     var geo = new THREE.BufferGeometry().setFromPoints(pts);
     pzsVizGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({color:color, transparent:true, opacity:0.9})));
+  }
+  function addPzsRadius(vec){
+    var geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), vec.clone().multiplyScalar(R)]);
+    pzsVizGroup.add(new THREE.Line(geo, new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:0.45})));
   }
   function slerpAt(v0, v1, t){
     var dot = clamp(v0.dot(v1));
@@ -1121,12 +1138,17 @@
     pzsVizGroup.add(label);
   }
 
+  var PZS_RED = 0xff3b3b;
+
   function renderPzsViz(){
     while (pzsVizGroup.children.length){ pzsVizGroup.remove(pzsVizGroup.children[0]); }
     if (!pzsMode) return;
 
+    var showRadii = document.getElementById('pzs-showRadii').checked;
+
     var vecP = latLonToUnit(90, 0);
     addPzsMarker(vecP, 'P', 0xffd27a);
+    if (showRadii) addPzsRadius(vecP);
     if (pzsStep < 2) return;
 
     var az = parseFloat(document.getElementById('pzs-az').value);
@@ -1145,13 +1167,20 @@
 
     addPzsMarker(vecS, 'S', 0xff6bd6);
     addPzsMarker(vecZ, 'Z', 0x4c8dff);
+    if (showRadii){ addPzsRadius(vecS); addPzsRadius(vecZ); }
     addPzsArc(vecP, vecZ, 0x6f7fa8);
-    addPzsArc(vecP, vecS, 0x6f7fa8);
+    addPzsArc(vecP, vecS, pzsStep === 3 ? PZS_RED : 0x6f7fa8); // Step 3 target: declination (arc PS)
     addPzsArc(vecZ, vecS, 0x3ecf8e);
 
     addPzsArcLabel(vecP, vecZ, resZ.PX, '#9fc4ff');
+    addPzsArcLabel(vecP, vecS, resZ.PS, pzsStep === 3 ? '#ff8080' : '#9fc4ff');
     addPzsArcLabel(vecZ, vecS, resZ.SX, '#7de8c0');
     addPzsAngleWedge(vecZ, vecP, vecS, resZ.PX, resZ.SX, resZ.angX, '#ffd27a');
+
+    if (pzsStep >= 4 && resZ.angP !== null){
+      // Step 4 target: longitude difference (angle ZPS at the pole)
+      addPzsAngleWedge(vecP, vecZ, vecS, resZ.PX, resZ.PS, resZ.angP, pzsStep === 4 ? PZS_RED : '#ffd27a');
+    }
 
     if (pzsStep >= 5){
       var azY = parseFloat(document.getElementById('pzs-az-y').value);
@@ -1167,11 +1196,13 @@
         var vecY = latLonToUnit(altPY, lonY);
 
         addPzsMarker(vecY, 'Y', 0xffa64c);
+        if (showRadii) addPzsRadius(vecY);
         addPzsArc(vecP, vecY, 0x6f7fa8);
         addPzsArc(vecY, vecS, 0x3ecf8e);
         addPzsArcLabel(vecP, vecY, resY.PX, '#ffcf9f');
         addPzsArcLabel(vecY, vecS, resY.SX, '#7de8c0');
         addPzsAngleWedge(vecY, vecP, vecS, resY.PX, resY.SX, resY.angX, '#ffd27a');
+        addPzsAngleWedge(vecP, vecY, vecS, resY.PX, resY.PS, resY.angP, '#ffd27a');
 
         if (pzsStep >= 6){
           addPzsArc(vecY, vecZ, 0xffd27a);
