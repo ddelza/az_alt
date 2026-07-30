@@ -208,12 +208,18 @@
       <button class="secondary small" id="btnPzsExit">← 돌아가기</button>
     </div>
     <h1>🧭 별 동시측정으로 두 지점의 거리 구하기</h1>
-    <p class="sub" id="pzsStepIndicator">Step 1 / 7</p>
+    <p class="sub" id="pzsStepIndicator">Step 1 / 8</p>
     <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:-6px 0 4px;cursor:pointer;">
       <input type="checkbox" id="pzs-showRadii" checked style="width:auto;flex:0 0 auto;"> 반지름 직선 켜기 (중심 O → 각 점)
     </label>
-    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:0 0 10px;cursor:pointer;">
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:0 0 4px;cursor:pointer;">
       <input type="checkbox" id="pzs-showMeridians" checked style="width:auto;flex:0 0 auto;"> 자오선 켜기
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:0 0 4px;cursor:pointer;">
+      <input type="checkbox" id="pzs-showLatitudes" checked style="width:auto;flex:0 0 auto;"> 위선 켜기
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:0 0 10px;cursor:pointer;">
+      <input type="checkbox" id="pzs-showEquator" checked style="width:auto;flex:0 0 auto;"> 적도 켜기
     </label>
 
     <div class="pzsStepPanel" data-step="1">
@@ -438,9 +444,10 @@
   }
 
   var meridianGroup = new THREE.Group();
+  var latitudeGroup = new THREE.Group();
+  var equatorGroup = new THREE.Group();
 
   function buildGraticule(){
-    var group = new THREE.Group();
     var mat = new THREE.LineBasicMaterial({color:0x3e5486, transparent:true, opacity:0.5});
     var equatorMat = new THREE.LineBasicMaterial({color:0x6f8ecf, transparent:true, opacity:0.85});
     var primeMeridianMat = new THREE.LineBasicMaterial({color:0xff8a3d, transparent:true, opacity:0.95});
@@ -451,7 +458,11 @@
         pts.push(latLonToUnit(lat,lon).multiplyScalar(R));
       }
       var geo = new THREE.BufferGeometry().setFromPoints(pts);
-      group.add(new THREE.Line(geo, lat===0?equatorMat:mat));
+      if (lat === 0){
+        equatorGroup.add(new THREE.Line(geo, equatorMat));
+      } else {
+        latitudeGroup.add(new THREE.Line(geo, mat));
+      }
     }
     for (var m=0; m<180; m+=30){
       var pts2 = [];
@@ -468,10 +479,10 @@
     var pmLabel = makeTextSprite('0°(본초자오선)', {fontSize:34, width:340, height:64, color:'#ffb87a'});
     pmLabel.position.copy(latLonToUnit(6, 0).multiplyScalar(R + 0.3));
     meridianGroup.add(pmLabel);
-
-    return group;
   }
-  scene.add(buildGraticule());
+  buildGraticule();
+  scene.add(latitudeGroup);
+  scene.add(equatorGroup);
   scene.add(meridianGroup);
 
   var centerVizGroup = new THREE.Group();
@@ -1184,6 +1195,12 @@
   document.getElementById('pzs-showRadii').addEventListener('change', renderPzsViz);
   document.getElementById('pzs-showMeridians').addEventListener('change', function(){
     meridianGroup.visible = document.getElementById('pzs-showMeridians').checked;
+  });
+  document.getElementById('pzs-showLatitudes').addEventListener('change', function(){
+    latitudeGroup.visible = document.getElementById('pzs-showLatitudes').checked;
+  });
+  document.getElementById('pzs-showEquator').addEventListener('change', function(){
+    equatorGroup.visible = document.getElementById('pzs-showEquator').checked;
   });
 
   document.getElementById('btnPzsYConfirm').addEventListener('click', function(){
