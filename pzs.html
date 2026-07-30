@@ -58,6 +58,14 @@
   .stepTitle:first-child{margin-top:0;}
   .pzsDef{background:#0f1626;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.9;margin-bottom:8px;}
   .pzsDef b{color:var(--accent2);}
+  .pzsCompareTable{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
+  .pzsCompareTable th, .pzsCompareTable td{border:1px solid var(--border);padding:7px 8px;text-align:center;}
+  .pzsCompareTable th{background:#0f1626;color:var(--accent2);font-weight:600;}
+  .pzsCompareTable td:first-child{text-align:left;color:var(--muted);}
+  .pzsCompareTable tr:nth-child(2) td:not(:first-child){color:#9fd6ff;}
+  .pzsCompareTable tr:nth-child(3) td:not(:first-child){color:#7de8c0;}
+  .pzsCompareTable tr:nth-child(4) td:not(:first-child){color:#ffcf9f;}
+  .pzsCompareTable tr:nth-child(5) td:not(:first-child){font-weight:700;color:var(--good);}
 
   #convPanel{
     position:absolute;top:12px;left:12px;width:270px;z-index:5;
@@ -322,6 +330,34 @@
         </div>
         <div class="calcBox" id="pzsResultDistance">
           <div class="step muted">Step 6을 먼저 완료하세요.</div>
+        </div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="8">
+      <section>
+        <h2>Step 8 · 관측으로 구한 거리와 이론적 거리 비교하기</h2>
+        <div class="pzsDef">
+          지구를 반지름 6371km의 찌그러지지 않은 완전한 구라고 가정하면, 두 관측지의 실제 위도·경도만으로도 구면 코사인 법칙(대원 거리 공식)을 이용해 이론적인 거리를 구할 수 있습니다.<br>
+          <span class="muted">(실제 지구는 완전한 구가 아니라 타원체에 가까우므로, 이 값에는 어느 정도 오차가 있을 수 있습니다.)</span>
+        </div>
+        <div class="muted" style="font-size:11px;margin:0 0 6px;">두 관측지의 실제 위도·경도를 입력하세요. (동경 +, 서경 −, 북위 +, 남위 −)</div>
+        <div class="row">
+          <label style="width:auto;flex:0 0 64px;">관측지 Z</label>
+          <input type="number" id="pzs-real-latZ" step="0.0001" placeholder="위도" style="max-width:90px;">
+          <label style="width:auto">°</label>
+          <input type="number" id="pzs-real-lonZ" step="0.0001" placeholder="경도" style="max-width:90px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div class="row">
+          <label style="width:auto;flex:0 0 64px;">관측지 Y</label>
+          <input type="number" id="pzs-real-latY" step="0.0001" placeholder="위도" style="max-width:90px;">
+          <label style="width:auto">°</label>
+          <input type="number" id="pzs-real-lonY" step="0.0001" placeholder="경도" style="max-width:90px;">
+          <label style="width:auto">°</label>
+        </div>
+        <div id="pzsCompareTableWrap" class="calcBox">
+          <div class="step muted">두 관측지의 실제 위도·경도를 모두 입력하면 표가 나타납니다.</div>
         </div>
       </section>
     </div>
@@ -1072,6 +1108,8 @@
     }
 
     var outDist = document.getElementById('pzsResultDistance');
+    lastArcYZ = null;
+    lastDistanceExp = null;
     if (arcYZ !== null){
       var radius = parseFloat(document.getElementById('pzs-earthRadius').value);
       if (isNaN(radius) || radius <= 0){
@@ -1082,19 +1120,58 @@
         outDist.innerHTML = '<div class="step"><span class="formula">l = rθ = '+radius.toFixed(1)+' km × '+thetaRad.toFixed(6)+' rad<br>'
           + '(θ = 호 YZ = '+arcYZ.toFixed(4)+'° = '+thetaRad.toFixed(6)+' rad)</span><br>'
           + '두 지점 Y-Z 사이의 거리 ≈ <span class="result">'+distance.toFixed(2)+' km</span></div>';
+        lastArcYZ = arcYZ;
+        lastDistanceExp = distance;
       }
     } else {
       outDist.innerHTML = '<div class="step muted">Step 6을 먼저 완료하세요.</div>';
     }
   }
-  function updatePzsAll(){ updatePzsGuide(); renderPzsViz(); }
+
+  function updatePzsCompare(){
+    var wrap = document.getElementById('pzsCompareTableWrap');
+    var latZ = parseFloat(document.getElementById('pzs-real-latZ').value);
+    var lonZ = parseFloat(document.getElementById('pzs-real-lonZ').value);
+    var latY = parseFloat(document.getElementById('pzs-real-latY').value);
+    var lonY = parseFloat(document.getElementById('pzs-real-lonY').value);
+
+    if (lastArcYZ === null || lastDistanceExp === null){
+      wrap.innerHTML = '<div class="step muted">Step 6·7을 먼저 완료하세요.</div>';
+      return;
+    }
+    if (isNaN(latZ) || isNaN(lonZ) || isNaN(latY) || isNaN(lonY)){
+      wrap.innerHTML = '<div class="step muted">두 관측지의 실제 위도·경도를 모두 입력하면 표가 나타납니다.</div>';
+      return;
+    }
+
+    var latZr = toRad(latZ), latYr = toRad(latY), dLonr = toRad(lonZ - lonY);
+    var cosTheo = clamp(Math.sin(latZr)*Math.sin(latYr) + Math.cos(latZr)*Math.cos(latYr)*Math.cos(dLonr));
+    var thetaTheo = toDeg(Math.acos(cosTheo));
+    var distTheo = 6371 * toRad(thetaTheo);
+
+    var thetaExp = lastArcYZ, distExp = lastDistanceExp;
+    var thetaDiff = thetaExp - thetaTheo, distDiff = distExp - distTheo;
+    var thetaErrPct = Math.abs(thetaTheo) > 1e-9 ? (thetaDiff/thetaTheo*100) : 0;
+    var distErrPct = Math.abs(distTheo) > 1e-9 ? (distDiff/distTheo*100) : 0;
+
+    var html = '<table class="pzsCompareTable"><thead><tr><th></th><th>Y-Z 각도차</th><th>Y-Z 거리</th></tr></thead><tbody>';
+    html += '<tr><td>관측·계산으로 구한 거리(실험값)</td><td>'+thetaExp.toFixed(4)+'°</td><td>'+distExp.toFixed(2)+' km</td></tr>';
+    html += '<tr><td>위도·경도로 계산한 이론적 거리</td><td>'+thetaTheo.toFixed(4)+'°</td><td>'+distTheo.toFixed(2)+' km</td></tr>';
+    html += '<tr><td>차이 (실험값 − 이론값)</td><td>'+thetaDiff.toFixed(4)+'°</td><td>'+distDiff.toFixed(2)+' km</td></tr>';
+    html += '<tr><td>오차율</td><td>'+thetaErrPct.toFixed(2)+'%</td><td>'+distErrPct.toFixed(2)+'%</td></tr>';
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+  var lastArcYZ = null;
+  var lastDistanceExp = null;
+  function updatePzsAll(){ updatePzsGuide(); renderPzsViz(); updatePzsCompare(); }
   function invalidatePzsYConfirmation(){
     if (pzsYConfirmed){
       pzsYConfirmed = false;
       document.getElementById('pzsYConfirmStatus').textContent = '값이 변경되었습니다. "입력 완료"를 다시 눌러주세요.';
     }
   }
-  ['pzs-az','pzs-altS','pzs-altP','pzs-az-y','pzs-altS-y','pzs-altP-y','pzs-earthRadius'].forEach(function(id){
+  ['pzs-az','pzs-altS','pzs-altP','pzs-az-y','pzs-altS-y','pzs-altP-y','pzs-earthRadius','pzs-real-latZ','pzs-real-lonZ','pzs-real-latY','pzs-real-lonY'].forEach(function(id){
     document.getElementById(id).addEventListener('input', updatePzsAll);
   });
   ['pzs-az-y','pzs-altS-y','pzs-altP-y'].forEach(function(id){
@@ -1280,7 +1357,7 @@
   // ---------- PZS mode: sidebar swap + step navigation ----------
   var pzsMode = false;
   var pzsStep = 1;
-  var PZS_STEP_COUNT = 7;
+  var PZS_STEP_COUNT = 8;
   var pzsYConfirmed = false;
 
   function showPzsStep(n){
