@@ -284,13 +284,8 @@
         <div class="calcBox" id="pzsResultY">
           <div class="step muted">위 세 값을 입력하면 자동으로 계산됩니다.</div>
         </div>
-      </section>
-    </div>
 
-    <div class="pzsStepPanel" data-step="6">
-      <section>
-        <h2>Step 6 · Y-Z 사이의 경도차와 호의 길이 구하기</h2>
-        <div class="row">
+        <div class="row" style="margin-top:8px;">
           <label style="width:auto;flex:1 1 auto;">별의 경도가 두 관측자 사이에 있나요?</label>
         </div>
         <div class="row">
@@ -299,6 +294,17 @@
             <option value="outside">아니오 — 큰 값에서 작은 값을 뺍니다</option>
           </select>
         </div>
+        <div class="flexend" style="margin-top:8px;">
+          <button id="btnPzsYConfirm">입력 완료</button>
+        </div>
+        <div class="muted" style="font-size:11px;margin:8px 0 0;" id="pzsYConfirmStatus">위 값을 모두 입력하고 "입력 완료"를 누르면 관측자 Y가 본 별의 위치(S')가 표시됩니다.</div>
+      </section>
+    </div>
+
+    <div class="pzsStepPanel" data-step="6">
+      <section>
+        <h2>Step 6 · Y-Z 사이의 경도차와 호의 길이 구하기</h2>
+        <div class="pzsDef" id="pzsRelationText">Step 5에서 답변한 내용이 여기에 표시됩니다.</div>
         <div class="muted" style="font-size:11px;margin:2px 0 8px;">두 관측자의 위도 = 각자 측정한 북극성의 고도. 이 위도들과 경도차로 구면 코사인 법칙을 적용해 호 YZ를 구합니다.</div>
         <div class="calcBox" id="pzsResultYZ">
           <div class="step muted">Step 4·5를 먼저 완료하세요.</div>
@@ -1032,10 +1038,18 @@
       outY.innerHTML = resY.htmlDec + resY.htmlLon;
     }
 
+    var relationText = document.getElementById('pzsRelationText');
+    var relationNow = document.getElementById('pzs-lonRelation').value;
+    if (relationText){
+      relationText.textContent = relationNow === 'between'
+        ? '별의 경도가 두 관측자 사이에 있으므로, 두 경도차를 더합니다.'
+        : '별의 경도가 두 관측자 사이에 있지 않으므로 경도차는 큰 것에서 작은 것을 뺍니다.';
+    }
+
     var outYZ = document.getElementById('pzsResultYZ');
     var arcYZ = null;
-    if (resZ && resY && resZ.angP !== null && resY.angP !== null){
-      var relation = document.getElementById('pzs-lonRelation').value;
+    if (resZ && resY && resZ.angP !== null && resY.angP !== null && pzsYConfirmed){
+      var relation = relationNow;
       var lonYZ = relation === 'between' ? (resZ.angP + resY.angP) : Math.abs(resZ.angP - resY.angP);
       var latZ = resZ.lat, latY = resY.lat; // observer latitude = altitude of Polaris
       var latZr = toRad(latZ), latYr = toRad(latY), lonYZr = toRad(lonYZ);
@@ -1054,7 +1068,7 @@
       html += '<div class="step"><span class="formula">호 YZ = arccos('+fmt(cosYZ)+') = <span class="result">'+arcYZ.toFixed(4)+'°</span></span></div>';
       outYZ.innerHTML = html;
     } else {
-      outYZ.innerHTML = '<div class="step muted">Step 4·5를 먼저 완료하세요.</div>';
+      outYZ.innerHTML = '<div class="step muted">Step 5에서 "입력 완료"를 먼저 눌러주세요.</div>';
     }
 
     var outDist = document.getElementById('pzsResultDistance');
@@ -1074,13 +1088,53 @@
     }
   }
   function updatePzsAll(){ updatePzsGuide(); renderPzsViz(); }
+  function invalidatePzsYConfirmation(){
+    if (pzsYConfirmed){
+      pzsYConfirmed = false;
+      document.getElementById('pzsYConfirmStatus').textContent = '값이 변경되었습니다. "입력 완료"를 다시 눌러주세요.';
+    }
+  }
   ['pzs-az','pzs-altS','pzs-altP','pzs-az-y','pzs-altS-y','pzs-altP-y','pzs-earthRadius'].forEach(function(id){
     document.getElementById(id).addEventListener('input', updatePzsAll);
   });
-  document.getElementById('pzs-lonRelation').addEventListener('change', updatePzsAll);
+  ['pzs-az-y','pzs-altS-y','pzs-altP-y'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', invalidatePzsYConfirmation);
+  });
+  document.getElementById('pzs-lonRelation').addEventListener('change', function(){
+    invalidatePzsYConfirmation();
+    updatePzsAll();
+  });
   document.getElementById('pzs-showRadii').addEventListener('change', renderPzsViz);
   document.getElementById('pzs-showMeridians').addEventListener('change', function(){
     meridianGroup.visible = document.getElementById('pzs-showMeridians').checked;
+  });
+
+  document.getElementById('btnPzsYConfirm').addEventListener('click', function(){
+    var az = parseFloat(document.getElementById('pzs-az').value);
+    var altS = parseFloat(document.getElementById('pzs-altS').value);
+    var altP = parseFloat(document.getElementById('pzs-altP').value);
+    var resZ = stationCalc('Z', az, altS, altP);
+    var azY = parseFloat(document.getElementById('pzs-az-y').value);
+    var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
+    var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
+    var resY = stationCalc('Y', azY, altSY, altPY);
+    var status = document.getElementById('pzsYConfirmStatus');
+
+    if (!resZ || !resY){
+      status.textContent = 'Step 2와 Step 5의 값을 모두 입력하세요.';
+      return;
+    }
+
+    var diff = Math.abs(resZ.dec - resY.dec);
+    var percent = Math.abs(resZ.dec) > 1e-9 ? (diff/Math.abs(resZ.dec)*100) : (diff > 1e-9 ? Infinity : 0);
+    var percentText = isFinite(percent) ? percent.toFixed(2)+'%' : '∞%';
+    var msg = '주의, 관측자 Z가 측정한 S의 적위는 '+resZ.dec.toFixed(4)+'°, 관측자 Y가 측정한 S의 적위는 '+resY.dec.toFixed(4)+'°로 '
+      + diff.toFixed(4)+'° ('+percentText+') 만큼의 오차가 있습니다. 이대로 진행하시겠습니까?';
+    if (!confirm(msg)) return;
+
+    pzsYConfirmed = true;
+    status.textContent = '입력 완료 — 관측자 Y가 본 별의 위치(S\')가 아래 그림에 표시됩니다.';
+    updatePzsAll();
   });
 
   // ---------- PZS 3D visualization ----------
@@ -1182,7 +1236,7 @@
       addPzsAngleWedge(vecP, vecZ, vecS, resZ.PX, resZ.PS, resZ.angP, pzsStep === 4 ? PZS_RED : '#ffd27a');
     }
 
-    if (pzsStep >= 5){
+    if (pzsStep >= 5 && pzsYConfirmed){
       var azY = parseFloat(document.getElementById('pzs-az-y').value);
       var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
       var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
@@ -1198,11 +1252,23 @@
         addPzsMarker(vecY, 'Y', 0xffa64c);
         if (showRadii) addPzsRadius(vecY);
         addPzsArc(vecP, vecY, 0x6f7fa8);
-        addPzsArc(vecY, vecS, 0x3ecf8e);
+
+        // S' = the star's position as independently derived from Y's own
+        // measurements (forward-geodesic from Y's now-known position). If Z
+        // and Y's data are consistent this lands on S; otherwise it appears
+        // as a visibly separate point, making the earlier declination
+        // mismatch warning literally visible on the sphere.
+        var sPrimePos = forwardGeodesic(altPY, lonY, azY, resY.SX);
+        var vecSPrime = latLonToUnit(sPrimePos.lat, sPrimePos.lon);
+        addPzsMarker(vecSPrime, "S'", 0xd946ef);
+        if (showRadii) addPzsRadius(vecSPrime);
+        addPzsArc(vecY, vecSPrime, 0x3ecf8e);
+        addPzsArc(vecP, vecSPrime, 0x6f7fa8);
+
         addPzsArcLabel(vecP, vecY, resY.PX, '#ffcf9f');
-        addPzsArcLabel(vecY, vecS, resY.SX, '#7de8c0');
-        addPzsAngleWedge(vecY, vecP, vecS, resY.PX, resY.SX, resY.angX, '#ffd27a');
-        addPzsAngleWedge(vecP, vecY, vecS, resY.PX, resY.PS, resY.angP, '#ffd27a');
+        addPzsArcLabel(vecY, vecSPrime, resY.SX, '#7de8c0');
+        addPzsAngleWedge(vecY, vecP, vecSPrime, resY.PX, resY.SX, resY.angX, '#ffd27a');
+        addPzsAngleWedge(vecP, vecY, vecSPrime, resY.PX, resY.PS, resY.angP, '#ffd27a');
 
         if (pzsStep >= 6){
           addPzsArc(vecY, vecZ, 0xffd27a);
@@ -1215,6 +1281,7 @@
   var pzsMode = false;
   var pzsStep = 1;
   var PZS_STEP_COUNT = 7;
+  var pzsYConfirmed = false;
 
   function showPzsStep(n){
     pzsStep = Math.max(1, Math.min(PZS_STEP_COUNT, n));
@@ -1229,6 +1296,7 @@
 
   function enterPzsMode(){
     pzsMode = true;
+    pzsYConfirmed = false;
     document.getElementById('normalSidebar').style.display = 'none';
     document.getElementById('pzsSidebar').style.display = 'block';
     userGeomGroup.visible = false;
@@ -1254,23 +1322,9 @@
   document.getElementById('btnPzsNext').addEventListener('click', function(){
     if (pzsStep === PZS_STEP_COUNT){ exitPzsMode(); return; }
 
-    if (pzsStep === 5){
-      var az = parseFloat(document.getElementById('pzs-az').value);
-      var altS = parseFloat(document.getElementById('pzs-altS').value);
-      var altP = parseFloat(document.getElementById('pzs-altP').value);
-      var resZ = stationCalc('Z', az, altS, altP);
-      var azY = parseFloat(document.getElementById('pzs-az-y').value);
-      var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
-      var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
-      var resY = stationCalc('Y', azY, altSY, altPY);
-      if (resZ && resY){
-        var diff = Math.abs(resZ.dec - resY.dec);
-        var percent = Math.abs(resZ.dec) > 1e-9 ? (diff/Math.abs(resZ.dec)*100) : (diff > 1e-9 ? Infinity : 0);
-        var percentText = isFinite(percent) ? percent.toFixed(2)+'%' : '∞%';
-        var msg = '주의, 관측자 Z가 측정한 S의 적위는 '+resZ.dec.toFixed(4)+'°, 관측자 Y가 측정한 S의 적위는 '+resY.dec.toFixed(4)+'°로 '
-          + diff.toFixed(4)+'° ('+percentText+') 만큼의 오차가 있습니다. 이대로 진행하시겠습니까?';
-        if (!confirm(msg)) return;
-      }
+    if (pzsStep === 5 && !pzsYConfirmed){
+      alert('먼저 관측자 Y의 값을 입력하고 "입력 완료"를 눌러주세요.');
+      return;
     }
 
     showPzsStep(pzsStep+1);
