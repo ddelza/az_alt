@@ -52,6 +52,7 @@
   #calc .step, .calcBox .step{background:#0f1626;border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12px;line-height:1.7;}
   #calc .formula, .calcBox .formula{font-family:"Cambria Math","STIX Two Math",serif;font-size:13px;color:#dce6ff;}
   #calc .result, .calcBox .result{font-weight:700;color:var(--good);}
+  #calc .pzsGoal, .calcBox .pzsGoal{font-weight:700;color:#ff6b6b;}
   #calc table td, #calc table th{padding:5px 6px;}
   .flexend{display:flex;justify-content:flex-end;gap:8px;}
   .stepTitle{font-size:12px;font-weight:700;color:var(--accent);margin:10px 0 6px;}
@@ -1035,6 +1036,8 @@
       angP = toDeg(Math.acos(cosAngP));
     }
 
+    var goalClass = (stationLetter === 'Z') ? 'pzsGoal' : 'result';
+
     var htmlDec = ''
       + '<div class="step">호 '+arcPX+' = 90° − 북극성의 고도 = 90° − '+altP.toFixed(4)+'° = <span class="result">'+PX.toFixed(4)+'°</span></div>'
       + '<div class="step">호 '+arcSX+' = 90° − 별의 고도 = 90° − '+altS.toFixed(4)+'° = <span class="result">'+SX.toFixed(4)+'°</span></div>'
@@ -1042,7 +1045,7 @@
       + '<div class="step"><span class="formula">구면 코사인 법칙(SAS): cos(PS) = cos('+arcPX+')·cos('+arcSX+') + sin('+arcPX+')·sin('+arcSX+')·cos(∠P'+stationLetter+'S)<br>'
       +   '= cos('+PX.toFixed(2)+'°)×cos('+SX.toFixed(2)+'°) + sin('+PX.toFixed(2)+'°)×sin('+SX.toFixed(2)+'°)×cos('+angX.toFixed(2)+'°) = '+fmt(cosPS)+'</span></div>'
       + '<div class="step"><span class="formula">호 PS = arccos('+fmt(cosPS)+') = <span class="result">'+PS.toFixed(4)+'°</span></span></div>'
-      + '<div class="step">별의 적위('+stationLetter+' 기준) = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="result">'+dec.toFixed(4)+'°</span></div>';
+      + '<div class="step">별의 적위('+stationLetter+' 기준) = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="'+goalClass+'">'+dec.toFixed(4)+'°</span></div>';
 
     var htmlLon;
     if (angP === null){
@@ -1052,7 +1055,7 @@
         + '<div class="step"><span class="formula">구면 코사인 법칙(SSS→각): cos(∠'+stationLetter+'PS) = (cos('+arcSX+') − cos('+arcPX+')·cos(PS)) / (sin('+arcPX+')·sin(PS))<br>'
         +   '= ('+fmt(Math.cos(SXr))+' − '+fmt(Math.cos(PXr)*Math.cos(PSr))+') / '+fmt(denom)+' = '+fmt(cosAngP)+'</span></div>'
         + '<div class="step">∠'+stationLetter+'PS = arccos('+fmt(cosAngP)+') = <span class="result">'+angP.toFixed(4)+'°</span><br>'
-        +   '→ '+stationLetter+'와 S 사이의 경도차 = <span class="result">'+angP.toFixed(4)+'°</span></div>';
+        +   '→ '+stationLetter+'와 S 사이의 경도차 = <span class="'+goalClass+'">'+angP.toFixed(4)+'°</span></div>';
     }
 
     return {PX:PX, SX:SX, angX:angX, PS:PS, dec:dec, angP:angP, lat:altP, htmlDec:htmlDec, htmlLon:htmlLon};
@@ -1112,7 +1115,7 @@
       html += '<div class="step">Y-Z 경도차 = '+relLabel+' = <span class="result">'+lonYZ.toFixed(4)+'°</span></div>';
       html += '<div class="step"><span class="formula">cos(YZ) = sin(위도Y)·sin(위도Z) + cos(위도Y)·cos(위도Z)·cos(경도차)<br>'
         + '= ('+fmt(Math.sin(latYr))+'×'+fmt(Math.sin(latZr))+') + ('+fmt(Math.cos(latYr))+'×'+fmt(Math.cos(latZr))+'×'+fmt(Math.cos(lonYZr))+') = '+fmt(cosYZ)+'</span></div>';
-      html += '<div class="step"><span class="formula">호 YZ = arccos('+fmt(cosYZ)+') = <span class="result">'+arcYZ.toFixed(4)+'°</span></span></div>';
+      html += '<div class="step"><span class="formula">호 YZ = arccos('+fmt(cosYZ)+') = <span class="pzsGoal">'+arcYZ.toFixed(4)+'°</span></span></div>';
       outYZ.innerHTML = html;
     } else {
       outYZ.innerHTML = '<div class="step muted">Step 5에서 "입력 완료"를 먼저 눌러주세요.</div>';
@@ -1130,7 +1133,7 @@
         var distance = radius * thetaRad;
         outDist.innerHTML = '<div class="step"><span class="formula">l = rθ = '+radius.toFixed(1)+' km × '+thetaRad.toFixed(6)+' rad<br>'
           + '(θ = 호 YZ = '+arcYZ.toFixed(4)+'° = '+thetaRad.toFixed(6)+' rad)</span><br>'
-          + '두 지점 Y-Z 사이의 거리 ≈ <span class="result">'+distance.toFixed(2)+' km</span></div>';
+          + '두 지점 Y-Z 사이의 거리 ≈ <span class="pzsGoal">'+distance.toFixed(2)+' km</span></div>';
         lastArcYZ = arcYZ;
         lastDistanceExp = distance;
       }
@@ -1365,7 +1368,24 @@
         addPzsAngleWedge(vecP, vecY, vecSPrime, resY.PX, resY.PS, resY.angP, '#ffd27a');
 
         if (pzsStep >= 6){
-          addPzsArc(vecY, vecZ, 0xffd27a);
+          // Step 6 target: arc YZ itself. Step 7 target: that same arc expressed as a real distance.
+          var yzIsGoal = (pzsStep === 6 || pzsStep === 7);
+          addPzsArc(vecY, vecZ, yzIsGoal ? PZS_RED : 0xffd27a);
+          var arcYZDeg = toDeg(Math.acos(clamp(vecY.dot(vecZ))));
+          if (pzsStep === 6){
+            addPzsArcLabel(vecY, vecZ, arcYZDeg, '#ff8080');
+          } else if (pzsStep === 7){
+            var earthRadius = parseFloat(document.getElementById('pzs-earthRadius').value);
+            var mid = slerpAt(vecY, vecZ, 0.5);
+            var labelText = (!isNaN(earthRadius) && earthRadius > 0)
+              ? (earthRadius*toRad(arcYZDeg)).toFixed(0)+'km'
+              : arcYZDeg.toFixed(1)+'°';
+            var distLabel = makeTextSprite(labelText, {fontSize:28, width:130, height:56, color:'#ff8080'});
+            distLabel.position.copy(mid).multiplyScalar(R + 0.15);
+            pzsVizGroup.add(distLabel);
+          } else {
+            addPzsArcLabel(vecY, vecZ, arcYZDeg, '#ffcf9f');
+          }
         }
       }
     }
