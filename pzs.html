@@ -1036,7 +1036,7 @@
       angP = toDeg(Math.acos(cosAngP));
     }
 
-    var goalClass = (stationLetter === 'Z') ? 'pzsGoal' : 'result';
+    var goalClass = 'pzsGoal';
 
     var htmlDec = ''
       + '<div class="step">호 '+arcPX+' = 90° − 북극성의 고도 = 90° − '+altP.toFixed(4)+'° = <span class="result">'+PX.toFixed(4)+'°</span></div>'
@@ -1045,7 +1045,7 @@
       + '<div class="step"><span class="formula">구면 코사인 법칙(SAS): cos(PS) = cos('+arcPX+')·cos('+arcSX+') + sin('+arcPX+')·sin('+arcSX+')·cos(∠P'+stationLetter+'S)<br>'
       +   '= cos('+PX.toFixed(2)+'°)×cos('+SX.toFixed(2)+'°) + sin('+PX.toFixed(2)+'°)×sin('+SX.toFixed(2)+'°)×cos('+angX.toFixed(2)+'°) = '+fmt(cosPS)+'</span></div>'
       + '<div class="step"><span class="formula">호 PS = arccos('+fmt(cosPS)+') = <span class="result">'+PS.toFixed(4)+'°</span></span></div>'
-      + '<div class="step">별의 적위('+stationLetter+' 기준) = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="'+goalClass+'">'+dec.toFixed(4)+'°</span></div>';
+      + '<div class="step"><span class="'+goalClass+'">별의 적위('+stationLetter+' 기준)</span> = 90° − 호PS = 90° − '+PS.toFixed(4)+'° = <span class="'+goalClass+'">'+dec.toFixed(4)+'°</span></div>';
 
     var htmlLon;
     if (angP === null){
@@ -1055,7 +1055,7 @@
         + '<div class="step"><span class="formula">구면 코사인 법칙(SSS→각): cos(∠'+stationLetter+'PS) = (cos('+arcSX+') − cos('+arcPX+')·cos(PS)) / (sin('+arcPX+')·sin(PS))<br>'
         +   '= ('+fmt(Math.cos(SXr))+' − '+fmt(Math.cos(PXr)*Math.cos(PSr))+') / '+fmt(denom)+' = '+fmt(cosAngP)+'</span></div>'
         + '<div class="step">∠'+stationLetter+'PS = arccos('+fmt(cosAngP)+') = <span class="result">'+angP.toFixed(4)+'°</span><br>'
-        +   '→ '+stationLetter+'와 S 사이의 경도차 = <span class="'+goalClass+'">'+angP.toFixed(4)+'°</span></div>';
+        +   '→ <span class="'+goalClass+'">'+stationLetter+'와 S 사이의 경도차</span> = <span class="'+goalClass+'">'+angP.toFixed(4)+'°</span></div>';
     }
 
     return {PX:PX, SX:SX, angX:angX, PS:PS, dec:dec, angP:angP, lat:altP, htmlDec:htmlDec, htmlLon:htmlLon};
@@ -1115,7 +1115,7 @@
       html += '<div class="step">Y-Z 경도차 = '+relLabel+' = <span class="result">'+lonYZ.toFixed(4)+'°</span></div>';
       html += '<div class="step"><span class="formula">cos(YZ) = sin(위도Y)·sin(위도Z) + cos(위도Y)·cos(위도Z)·cos(경도차)<br>'
         + '= ('+fmt(Math.sin(latYr))+'×'+fmt(Math.sin(latZr))+') + ('+fmt(Math.cos(latYr))+'×'+fmt(Math.cos(latZr))+'×'+fmt(Math.cos(lonYZr))+') = '+fmt(cosYZ)+'</span></div>';
-      html += '<div class="step"><span class="formula">호 YZ = arccos('+fmt(cosYZ)+') = <span class="pzsGoal">'+arcYZ.toFixed(4)+'°</span></span></div>';
+      html += '<div class="step"><span class="formula"><span class="pzsGoal">호 YZ</span> = arccos('+fmt(cosYZ)+') = <span class="pzsGoal">'+arcYZ.toFixed(4)+'°</span></span></div>';
       outYZ.innerHTML = html;
     } else {
       outYZ.innerHTML = '<div class="step muted">Step 5에서 "입력 완료"를 먼저 눌러주세요.</div>';
@@ -1133,7 +1133,7 @@
         var distance = radius * thetaRad;
         outDist.innerHTML = '<div class="step"><span class="formula">l = rθ = '+radius.toFixed(1)+' km × '+thetaRad.toFixed(6)+' rad<br>'
           + '(θ = 호 YZ = '+arcYZ.toFixed(4)+'° = '+thetaRad.toFixed(6)+' rad)</span><br>'
-          + '두 지점 Y-Z 사이의 거리 ≈ <span class="pzsGoal">'+distance.toFixed(2)+' km</span></div>';
+          + '<span class="pzsGoal">두 지점 Y-Z 사이의 거리</span> ≈ <span class="pzsGoal">'+distance.toFixed(2)+' km</span></div>';
         lastArcYZ = arcYZ;
         lastDistanceExp = distance;
       }
@@ -1360,12 +1360,13 @@
         addPzsMarker(vecSPrime, "S'", 0xd946ef);
         if (showRadii) addPzsRadius(vecSPrime);
         addPzsArc(vecY, vecSPrime, 0x3ecf8e);
-        addPzsArc(vecP, vecSPrime, 0x6f7fa8);
+        addPzsArc(vecP, vecSPrime, PZS_RED); // Step 5 target: Y's declination (arc P-S')
 
         addPzsArcLabel(vecP, vecY, resY.PX, '#ffcf9f');
         addPzsArcLabel(vecY, vecSPrime, resY.SX, '#7de8c0');
+        addPzsArcLabel(vecP, vecSPrime, resY.PS, '#ff8080');
         addPzsAngleWedge(vecY, vecP, vecSPrime, resY.PX, resY.SX, resY.angX, '#ffd27a');
-        addPzsAngleWedge(vecP, vecY, vecSPrime, resY.PX, resY.PS, resY.angP, '#ffd27a');
+        addPzsAngleWedge(vecP, vecY, vecSPrime, resY.PX, resY.PS, resY.angP, PZS_RED); // Step 5 target: Y-S longitude difference
 
         if (pzsStep >= 6){
           // Step 6 target: arc YZ itself. Step 7 target: that same arc expressed as a real distance.
