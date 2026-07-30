@@ -1253,6 +1253,26 @@
   document.getElementById('btnPzsPrev').addEventListener('click', function(){ showPzsStep(pzsStep-1); });
   document.getElementById('btnPzsNext').addEventListener('click', function(){
     if (pzsStep === PZS_STEP_COUNT){ exitPzsMode(); return; }
+
+    if (pzsStep === 5){
+      var az = parseFloat(document.getElementById('pzs-az').value);
+      var altS = parseFloat(document.getElementById('pzs-altS').value);
+      var altP = parseFloat(document.getElementById('pzs-altP').value);
+      var resZ = stationCalc('Z', az, altS, altP);
+      var azY = parseFloat(document.getElementById('pzs-az-y').value);
+      var altSY = parseFloat(document.getElementById('pzs-altS-y').value);
+      var altPY = parseFloat(document.getElementById('pzs-altP-y').value);
+      var resY = stationCalc('Y', azY, altSY, altPY);
+      if (resZ && resY){
+        var diff = Math.abs(resZ.dec - resY.dec);
+        var percent = Math.abs(resZ.dec) > 1e-9 ? (diff/Math.abs(resZ.dec)*100) : (diff > 1e-9 ? Infinity : 0);
+        var percentText = isFinite(percent) ? percent.toFixed(2)+'%' : '∞%';
+        var msg = '주의, 관측자 Z가 측정한 S의 적위는 '+resZ.dec.toFixed(4)+'°, 관측자 Y가 측정한 S의 적위는 '+resY.dec.toFixed(4)+'°로 '
+          + diff.toFixed(4)+'° ('+percentText+') 만큼의 오차가 있습니다. 이대로 진행하시겠습니까?';
+        if (!confirm(msg)) return;
+      }
+    }
+
     showPzsStep(pzsStep+1);
   });
 
